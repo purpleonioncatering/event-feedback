@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Purple Onion — Event Feedback</title>
+<base target="_top">
+<style>
+  :root { --plum:#7B5B7E; --sage:#E2EBDA; --line:#d8d4d0; --ink:#231f20; --warn:#B71C1C;
+          --good:#2E7D32; --muted:#6b6560; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:0 0 3rem; font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         color:var(--ink); background:#faf9f8; }
+  header { background:var(--plum); color:#fff; padding:1.1rem 1.2rem; }
+  header h1 { margin:0; font-size:1.15rem; font-weight:600; }
+  header p  { margin:.35rem 0 0; font-size:.85rem; opacity:.9; }
+
+  .wrap { max-width:1000px; margin:0 auto; padding:1.2rem; display:grid; gap:1.2rem;
+          grid-template-columns:minmax(0,1fr); align-items:start; }
+  @media (min-width:1024px) { .wrap { grid-template-columns:minmax(0,1fr) 290px; } }
+
+  fieldset { border:1px solid var(--line); border-radius:6px; background:#fff;
+             margin:0 0 1.1rem; padding:1rem; }
+  legend { font-weight:600; padding:0 .4rem; font-size:.95rem; }
+  label { display:block; margin:.9rem 0 .3rem; font-weight:500; font-size:.92rem; }
+  .req::after { content:" *"; color:var(--warn); }
+  input[type=text], input[type=email], input[type=date], input[type=number], select, textarea {
+    width:100%; padding:.6rem; border:1px solid var(--line); border-radius:4px;
+    font:inherit; background:#fff; }
+  .hint { font-size:.8rem; color:var(--muted); margin:.25rem 0 0; }
+  .count { font-size:.75rem; color:var(--muted); text-align:right; margin:.2rem 0 0; min-height:1em; }
+  .choices label, .checks label { font-weight:400; margin:.4rem 0; display:flex;
+    gap:.55rem; align-items:flex-start; }
+  .choices input, .checks input { margin-top:.25rem; flex:none; }
+
+  .reveal { display:none; margin:.5rem 0 0 1.6rem; padding:.7rem; background:#FFF8E1;
+            border-left:3px solid #E6A700; border-radius:0 4px 4px 0; }
+  .reveal.on { display:block; }
+  .reveal label { margin-top:0; }
+
+  .item { border:1px solid var(--line); border-left:4px solid var(--plum);
+          border-radius:5px; padding:.9rem; margin-bottom:.9rem; background:var(--sage); }
+  .item h3 { margin:0 0 .2rem; font-size:.9rem; text-transform:uppercase; letter-spacing:.04em; }
+  .item .inner { background:#fff; border-radius:4px; padding:.8rem; margin-top:.6rem; }
+  button { font:inherit; border-radius:5px; cursor:pointer; padding:.7rem 1.1rem; border:1px solid var(--plum); }
+  .add   { background:#fff; color:var(--plum); font-weight:600; width:100%; }
+  .rm    { background:none; border:none; color:var(--warn); font-size:.82rem;
+           padding:.2rem 0; text-decoration:underline; cursor:pointer; }
+  .send  { background:var(--plum); color:#fff; font-weight:600; font-size:1.05rem;
+           width:100%; padding:.9rem; margin-top:.6rem; }
+  .send[disabled] { opacity:.55; cursor:progress; }
+  #msg { padding:.9rem; border-radius:5px; margin-top:1rem; display:none; font-size:.92rem; }
+  #msg.ok  { display:block; background:#E8F5E9; border:1px solid var(--good); color:#1B5E20; }
+  #msg.err { display:block; background:#FFEBEE; border:1px solid var(--warn); color:#7f1414; }
+  .thumb { max-width:110px; border-radius:4px; margin-top:.5rem; display:block; }
+
+  /* ---- inventory grid (bar section) ---- */
+  .inv-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem 1rem; margin:.7rem 0; }
+  .inv-cell { display:flex; align-items:center; gap:.4rem; }
+  .inv-cell span { font-size:.88rem; flex:1; min-width:0; }
+  .inv-cell input[type=number] { width:60px; padding:.35rem .3rem; text-align:center;
+    font:inherit; border:1px solid var(--line); border-radius:4px; background:#fff; }
+
+  /* ---- the guidance bar ---- */
+  aside { font-size:.85rem; }
+  @media (min-width:1024px) { aside { position:sticky; top:1rem; } }
+  @media (max-width:1023px) { aside { order:-1; } }
+  .guide { background:#fff; border:1px solid var(--line); border-top:3px solid var(--plum);
+           border-radius:6px; padding:.9rem 1rem; }
+  .guide h4 { margin:0 0 .5rem; font-size:.8rem; text-transform:uppercase;
+              letter-spacing:.05em; color:var(--plum); }
+  .guide ul { margin:0; padding-left:1.1rem; color:var(--muted); }
+  .guide li { margin:.3rem 0; }
+  .ex { margin-top:.6rem; padding-top:.6rem; border-top:1px dashed var(--line); line-height:1.45; }
+  .ex .y { color:var(--good); display:block; }
+  .ex .n { color:var(--warn); display:block; }
+  .ex b { font-weight:600; }
+  .roleonly { display:none; }
+  .roleonly.on { display:block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Purple Onion &mdash; Event Feedback</h1>
+  <p>Due within 24 hours of the event. About a minute if nothing went wrong.</p>
+</header>
+
+<div class="wrap">
+<main>
+
+
+  <form id="f" onsubmit="return false;">
+
+    <fieldset id="s-event">
+      <legend>The event</legend>
+      <label class="req">Event number</label>
+      <input type="text" id="eventNumber" inputmode="numeric" pattern="[0-9]{5}"
+             placeholder="62977" required>
+      <p class="hint">The 5-digit invoice number.</p>
+
+      <label class="req">Event date</label>
+      <input type="date" id="eventDate" required>
+
+      <label class="req">Your name</label>
+      <input type="text" id="name" required>
+
+      <label>Your email</label>
+      <input type="email" id="email">
+      <p class="hint">Optional &mdash; only so we can follow up if we have a question.</p>
+
+      <label class="req">Your role</label>
+      <select id="role" required onchange="setRole()">
+        <option value="">Choose&hellip;</option>
+        <option>Chef</option>
+        <option>Captain</option>
+        <option>Bartender</option>
+      </select>
+    </fieldset>
+
+    <fieldset id="s-how">
+      <legend>How it went</legend>
+
+      <label class="req">Was all the equipment on the truck and working?</label>
+      <div class="choices">
+        <label><input type="radio" name="equipment" value="Yes" onchange="eqToggle()">Yes</label>
+        <label><input type="radio" name="equipment" value="Something was missing" onchange="eqToggle()">Something was missing</label>
+        <label><input type="radio" name="equipment" value="Something was broken" onchange="eqToggle()">Something was broken</label>
+      </div>
+      <div class="reveal" id="eqDetailWrap">
+        <label class="req">Which piece, and what happened?</label>
+        <input type="text" id="equipmentDetail" maxlength="140"
+               placeholder="2 of 4 induction burners dead on arrival" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Did the truck arrive on time?</label>
+      <div class="choices">
+        <label><input type="radio" name="truckOnTime" value="Yes" onchange="truckToggle()">Yes</label>
+        <label><input type="radio" name="truckOnTime" value="No" onchange="truckToggle()">No</label>
+      </div>
+      <div class="reveal" id="truckWrap">
+        <label class="req">How late, and what happened?</label>
+        <input type="text" id="truckLateDetail" maxlength="200" oninput="cnt(this)"
+               placeholder="30 minutes late, wrong address given to driver">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">How did service go overall? (1 rough &mdash; 5 excellent)</label>
+      <div class="choices">
+        <label><input type="radio" name="service" value="1">1</label>
+        <label><input type="radio" name="service" value="2">2</label>
+        <label><input type="radio" name="service" value="3">3</label>
+        <label><input type="radio" name="service" value="4">4</label>
+        <label><input type="radio" name="service" value="5">5</label>
+      </div>
+
+      <label>Anything that went well and should be repeated?</label>
+      <input type="text" id="wentWell" maxlength="200" oninput="cnt(this)">
+      <p class="count"></p>
+
+      <label>Anything else not tied to a specific dish?</label>
+      <input type="text" id="otherNotes" maxlength="200" oninput="cnt(this)">
+      <p class="hint">Venue, timing, logistics. Personnel problems go on the HR form, not here.</p>
+      <p class="count"></p>
+    </fieldset>
+
+    <!-- ============ CAPTAIN ONLY ============ -->
+    <fieldset class="roleonly" id="s-captain">
+      <legend>Captain &mdash; the room</legend>
+
+      <label class="req">Did you check in with the client or host before leaving?</label>
+      <div class="choices">
+        <label><input type="radio" name="clientCheckIn" value="Yes">Yes</label>
+        <label><input type="radio" name="clientCheckIn" value="Could not reach them">Could not reach them</label>
+        <label><input type="radio" name="clientCheckIn" value="No">No</label>
+      </div>
+
+      <label class="req">Any guest concerns?</label>
+      <div class="choices">
+        <label><input type="radio" name="guestConcerns" value="None" onchange="gcToggle()">None</label>
+        <label><input type="radio" name="guestConcerns" value="Yes" onchange="gcToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="gcWrap">
+        <label class="req">What was it, and how did you handle it?</label>
+        <input type="text" id="guestConcernsDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Was a pre-shift meeting done with all staff?</label>
+      <div class="choices">
+        <label><input type="radio" name="preShift" value="Yes">Yes</label>
+        <label><input type="radio" name="preShift" value="No">No</label>
+      </div>
+
+      <label class="req">How did setup and load-in go?</label>
+      <div class="choices">
+        <label><input type="radio" name="loadIn" value="Smooth" onchange="liToggle()">Smooth</label>
+        <label><input type="radio" name="loadIn" value="Minor issues" onchange="liToggle()">Minor issues</label>
+        <label><input type="radio" name="loadIn" value="Significant problems" onchange="liToggle()">Significant problems</label>
+      </div>
+      <div class="reveal" id="liWrap">
+        <label class="req">What happened?</label>
+        <input type="text" id="loadInDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">How did breakdown and load-out go?</label>
+      <div class="choices">
+        <label><input type="radio" name="loadOut" value="Smooth" onchange="loToggle()">Smooth</label>
+        <label><input type="radio" name="loadOut" value="Minor issues" onchange="loToggle()">Minor issues</label>
+        <label><input type="radio" name="loadOut" value="Significant problems" onchange="loToggle()">Significant problems</label>
+      </div>
+      <div class="reveal" id="loWrap">
+        <label class="req">What happened?</label>
+        <input type="text" id="loadOutDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Venue left clean, and checked out with the venue contact?</label>
+      <div class="choices">
+        <label><input type="radio" name="venueClosed" value="Yes, both">Yes, both</label>
+        <label><input type="radio" name="venueClosed" value="Left clean, no contact available">Left clean, no contact available</label>
+        <label><input type="radio" name="venueClosed" value="No">No</label>
+      </div>
+
+      <label class="req">Where were alcohol, rentals and equipment left or returned?</label>
+      <input type="text" id="capWhereReturned" maxlength="200" oninput="cnt(this)"
+             placeholder="All rentals stacked at the loading dock; alcohol back on the truck">
+      <p class="count"></p>
+
+      <!-- ---- v3 new captain questions ---- -->
+
+      <label class="req">Did the event stay on schedule?</label>
+      <div class="choices">
+        <label><input type="radio" name="onSchedule" value="Yes" onchange="schedToggle()">Yes</label>
+        <label><input type="radio" name="onSchedule" value="No" onchange="schedToggle()">No</label>
+      </div>
+      <div class="reveal" id="schedWrap">
+        <label class="req">What caused the delay?</label>
+        <input type="text" id="offScheduleCause" maxlength="200" oninput="cnt(this)"
+               placeholder="Ceremony ran 45 min over, venue not ready at load-in time">
+        <p class="count"></p>
+        <label class="req" style="margin-top:.7rem">How late?</label>
+        <input type="text" id="howLate" maxlength="60"
+               placeholder="15 minutes, 1 hour, etc.">
+      </div>
+
+      <label class="req">Were any important changes made to the event plan while onsite?</label>
+      <div class="choices">
+        <label><input type="radio" name="onsiteChanges" value="No" onchange="chgToggle()">No</label>
+        <label><input type="radio" name="onsiteChanges" value="Yes" onchange="chgToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="chgWrap">
+        <label class="req">What changed, and who approved it?</label>
+        <input type="text" id="changesDetail" maxlength="200" oninput="cnt(this)"
+               placeholder="Added 20 covers for dessert, approved by the event planner on-site">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Was everyone on time?</label>
+      <div class="choices">
+        <label><input type="radio" name="everyoneOnTime" value="Yes" onchange="otToggle()">Yes</label>
+        <label><input type="radio" name="everyoneOnTime" value="No" onchange="otToggle()">No</label>
+      </div>
+      <div class="reveal" id="otWrap">
+        <label class="req">Who was late, and what happened?</label>
+        <input type="text" id="punctualityDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Was everyone in the correct uniform?</label>
+      <div class="choices">
+        <label><input type="radio" name="correctUniform" value="Yes" onchange="uniToggle()">Yes</label>
+        <label><input type="radio" name="correctUniform" value="No" onchange="uniToggle()">No</label>
+      </div>
+      <div class="reveal" id="uniWrap">
+        <label class="req">Who, and what was the issue?</label>
+        <input type="text" id="uniformDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Was anything damaged, broken, or missing at the end of the event?</label>
+      <div class="choices">
+        <label><input type="radio" name="damagedBroken" value="No" onchange="dmgToggle()">No</label>
+        <label><input type="radio" name="damagedBroken" value="Yes" onchange="dmgToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="dmgWrap">
+        <label class="req">What items, and what happened?</label>
+        <input type="text" id="damageDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Was anyone hurt, was anything damaged, or was there a safety problem?</label>
+      <div class="choices">
+        <label><input type="radio" name="safetyIncident" value="No" onchange="safeToggle()">No</label>
+        <label><input type="radio" name="safetyIncident" value="Yes" onchange="safeToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="safeWrap">
+        <label class="req">Did you tell a manager and complete the incident report?</label>
+        <div class="choices">
+          <label><input type="radio" name="incidentReport" value="Yes">Yes</label>
+          <label><input type="radio" name="incidentReport" value="No">No</label>
+        </div>
+      </div>
+
+      <label class="req">Did you have temporary staff at this event?</label>
+      <div class="choices">
+        <label><input type="radio" name="tempStaff" value="No" onchange="tsToggle()">No</label>
+        <label><input type="radio" name="tempStaff" value="Yes" onchange="tsToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="tsWrap">
+        <label class="req">Was there a problem with any temp staff?</label>
+        <div class="choices">
+          <label><input type="radio" name="tempProblem" value="No" onchange="tspToggle()">No</label>
+          <label><input type="radio" name="tempProblem" value="Yes" onchange="tspToggle()">Yes</label>
+        </div>
+        <div class="reveal" id="tspWrap">
+          <label class="req">Name and what you saw</label>
+          <input type="text" id="tempDetail" maxlength="200" oninput="cnt(this)"
+                 placeholder="Name of the temp and what happened">
+          <p class="count"></p>
+        </div>
+      </div>
+
+      <label class="req">Did you receive a cash tip?</label>
+      <div class="choices">
+        <label><input type="radio" name="cashTip" value="No" onchange="tipToggle()">No</label>
+        <label><input type="radio" name="cashTip" value="Yes" onchange="tipToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="tipWrap">
+        <label class="req">Amount ($)</label>
+        <input type="number" id="tipAmount" min="0" step="1" placeholder="150">
+        <label class="req" style="margin-top:.7rem">Was it shared per company policy?</label>
+        <div class="choices">
+          <label><input type="radio" name="tipShared" value="Yes">Yes</label>
+          <label><input type="radio" name="tipShared" value="No">No</label>
+        </div>
+      </div>
+
+      <label class="req">Is there anything a manager should know before our next event at this venue or with this client?</label>
+      <div class="choices">
+        <label><input type="radio" name="venueNotes" value="No" onchange="vnToggle()">No</label>
+        <label><input type="radio" name="venueNotes" value="Yes" onchange="vnToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="vnWrap">
+        <label class="req">Explain</label>
+        <input type="text" id="venueNotesDetail" maxlength="300" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Did anyone demonstrate a Core Value in a way that deserves special recognition?</label>
+      <div class="choices">
+        <label><input type="radio" name="coreValue" value="No" onchange="cvToggle()">No</label>
+        <label><input type="radio" name="coreValue" value="Yes" onchange="cvToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="cvWrap">
+        <label class="req">Who, what they did, and which Core Value</label>
+        <input type="text" id="coreValueDetail" maxlength="300" oninput="cnt(this)"
+               placeholder="Name, what they did, and which Core Value it represents">
+        <p class="count"></p>
+      </div>
+    </fieldset>
+
+    <!-- ============ BARTENDER ONLY ============ -->
+    <fieldset class="roleonly" id="s-bar">
+      <legend>Bar</legend>
+
+      <label class="req">Was the bar set up and presented according to the event plan?</label>
+      <div class="choices">
+        <label><input type="radio" name="barSetup" value="Yes" onchange="bsToggle()">Yes</label>
+        <label><input type="radio" name="barSetup" value="No" onchange="bsToggle()">No</label>
+      </div>
+      <div class="reveal" id="bsWrap">
+        <label class="req">What was different?</label>
+        <input type="text" id="barSetupDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Did you have all alcohol, mixers, garnishes, ice, and supplies?</label>
+      <div class="choices">
+        <label><input type="radio" name="barSupplies" value="Yes">Yes</label>
+        <label><input type="radio" name="barSupplies" value="No">No</label>
+      </div>
+
+      <label class="req">Was there a guest or alcohol-related issue?</label>
+      <div class="choices">
+        <label><input type="radio" name="barIssue" value="No" onchange="biToggle()">No</label>
+        <label><input type="radio" name="barIssue" value="Yes" onchange="biToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="biWrap">
+        <label class="req">What happened?</label>
+        <input type="text" id="barIssueDetail" maxlength="200" oninput="cnt(this)"
+               placeholder="Intoxicated guest, shots requested, a refusal...">
+        <p class="count"></p>
+      </div>
+
+      <label>Bottle / item counts (leave blank if none)</label>
+      <div class="inv-grid">
+        <div class="inv-cell"><span>Vodka</span><input type="number" id="invVodka" min="0"></div>
+        <div class="inv-cell"><span>Gin</span><input type="number" id="invGin" min="0"></div>
+        <div class="inv-cell"><span>Rum</span><input type="number" id="invRum" min="0"></div>
+        <div class="inv-cell"><span>Bourbon</span><input type="number" id="invBourbon" min="0"></div>
+        <div class="inv-cell"><span>Whiskey</span><input type="number" id="invWhiskey" min="0"></div>
+        <div class="inv-cell"><span>Scotch</span><input type="number" id="invScotch" min="0"></div>
+        <div class="inv-cell"><span>Tequila</span><input type="number" id="invTequila" min="0"></div>
+        <div class="inv-cell"><span>Other liquor</span><input type="number" id="invOther" min="0"></div>
+        <div class="inv-cell"><span>Dry Vermouth</span><input type="number" id="invDryVermouth" min="0"></div>
+        <div class="inv-cell"><span>Sweet Vermouth</span><input type="number" id="invSweetVermouth" min="0"></div>
+        <div class="inv-cell"><span>Triple Sec</span><input type="number" id="invTripleSec" min="0"></div>
+        <div class="inv-cell"><span>Wine / Champagne</span><input type="number" id="invWineChampagne" min="0"></div>
+        <div class="inv-cell"><span>Beer</span><input type="number" id="invBeer" min="0"></div>
+        <div class="inv-cell"><span>Club Soda / Tonic</span><input type="number" id="invClubSodaTonic" min="0"></div>
+        <div class="inv-cell"><span>Unopened ice bags</span><input type="number" id="invIceBags" min="0"></div>
+      </div>
+
+      <label>Soda &mdash; list types and counts</label>
+      <input type="text" id="invSoda" maxlength="200" oninput="cnt(this)"
+             placeholder="Coke 3, Sprite 2, Ginger Ale 1">
+      <p class="count"></p>
+
+      <label>Juice &mdash; list types and counts</label>
+      <input type="text" id="invJuice" maxlength="200" oninput="cnt(this)"
+             placeholder="OJ 2, Cranberry 1, Grapefruit 1">
+      <p class="count"></p>
+
+      <label class="req">Was all leftover alcohol returned to the correct location?</label>
+      <div class="choices">
+        <label><input type="radio" name="barAlcoholReturned" value="Yes" onchange="brToggle()">Yes</label>
+        <label><input type="radio" name="barAlcoholReturned" value="No" onchange="brToggle()">No</label>
+      </div>
+      <div class="reveal" id="brWrap">
+        <label class="req">Where was it left?</label>
+        <input type="text" id="barReturnDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Was anything from the bar missing, broken, or damaged?</label>
+      <div class="choices">
+        <label><input type="radio" name="barDamaged" value="No" onchange="bdToggle()">No</label>
+        <label><input type="radio" name="barDamaged" value="Yes" onchange="bdToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="bdWrap">
+        <label class="req">What items, and what happened?</label>
+        <input type="text" id="barDamageDetail" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Is there anything a manager should know before our next event at this venue or with this client?</label>
+      <div class="choices">
+        <label><input type="radio" name="barVenueNotes" value="No" onchange="bvToggle()">No</label>
+        <label><input type="radio" name="barVenueNotes" value="Yes" onchange="bvToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="bvWrap">
+        <label class="req">Explain</label>
+        <input type="text" id="barVenueDetail" maxlength="300" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Is there anything else from the bar that a manager needs to follow up on?</label>
+      <div class="choices">
+        <label><input type="radio" name="barFollowUp" value="No" onchange="bfToggle()">No</label>
+        <label><input type="radio" name="barFollowUp" value="Yes" onchange="bfToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="bfWrap">
+        <label class="req">Explain</label>
+        <input type="text" id="barFollowDetail" maxlength="300" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+    </fieldset>
+
+    <!-- ============ ITEM LOOP - chef + captain ============ -->
+    <fieldset class="roleonly" id="s-items">
+      <legend>Items that had a problem</legend>
+      <p class="hint" style="margin:0 0 .9rem">
+        Only if something went wrong. One block per item &mdash; each gets its own problem and its
+        own photo. Nothing wrong? Leave this empty and send.</p>
+
+      <div id="items"></div>
+      <button type="button" class="add" onclick="addItem()">+ Add an item that had a problem</button>
+    </fieldset>
+
+    <button type="button" class="send" id="send" onclick="submit()">Send report</button>
+    <div id="msg"></div>
+  </form>
+</main>
+
+<aside>
+  <div class="guide" id="guide">
+    <h4>What good feedback looks like</h4>
+    <ul>
+      <li>Facts, not feelings. A number beats an adjective.</li>
+      <li>Name the item exactly as it reads on the production worksheet.</li>
+      <li>Temperature? Give the actual reading.</li>
+      <li>Personnel problems don&rsquo;t go here.</li>
+    </ul>
+    <div class="ex">
+      <span class="y"><b>Good</b> &mdash; &ldquo;2 of 4 induction burners dead on arrival&rdquo;</span>
+      <span class="n"><b>Weak</b> &mdash; &ldquo;equipment was a mess&rdquo;</span>
+    </div>
+    <div class="ex">
+      <span class="y"><b>Good</b> &mdash; &ldquo;Short rib arrived at 118&deg;F, held 40 min in the hotbox&rdquo;</span>
+      <span class="n"><b>Weak</b> &mdash; &ldquo;beef was cold&rdquo;</span>
+    </div>
+    <div class="ex">
+      <span class="y"><b>Good</b> &mdash; &ldquo;Sent 180 crab cakes for 220 covers, ran out at 9:15&rdquo;</span>
+      <span class="n"><b>Weak</b> &mdash; &ldquo;we ran short on apps&rdquo;</span>
+    </div>
+  </div>
+</aside>
+
+</div>
+
+<template id="tpl">
+  <div class="item">
+    <h3>Item <span class="n"></span></h3>
+    <button type="button" class="rm" onclick="this.closest('.item').remove(); renumber();">remove</button>
+    <div class="inner">
+      <label class="req">Which menu item?</label>
+      <input type="text" class="menuItem" placeholder="Exact name from the production worksheet">
+      <p class="hint">The exact name is what lets us trace it back to the recipe.</p>
+
+      <label class="req">What was the problem?</label>
+      <div class="checks probs">
+        <label><input type="checkbox" value="Quantity short">Quantity short</label>
+        <label><input type="checkbox" value="Quantity excess">Quantity excess</label>
+        <label><input type="checkbox" value="Flavor / seasoning">Flavor / seasoning</label>
+        <label><input type="checkbox" value="Temperature" onchange="tempToggle(this)">Temperature &mdash; out of range</label>
+        <label><input type="checkbox" value="Quality or condition on arrival">Quality or condition on arrival</label>
+        <label><input type="checkbox" value="Recipe or spec unclear / wrong">Recipe or spec unclear / wrong</label>
+        <label><input type="checkbox" value="Wrong item sent">Wrong item sent</label>
+        <label><input type="checkbox" value="Missing entirely">Missing entirely</label>
+        <label><input type="checkbox" value="Did not hold or reheat well">Did not hold or reheat well</label>
+        <label><input type="checkbox" value="Allergen or dietary issue">Allergen or dietary issue</label>
+        <label><input type="checkbox" value="Other">Other</label>
+      </div>
+
+      <div class="reveal tempWrap">
+        <label class="req">What did it read, in &deg;F?</label>
+        <input type="number" class="tempF" min="0" max="250" step="1" placeholder="118">
+        <p class="hint">The actual number off the thermometer. This is what settles a food-safety
+          escalation &mdash; &ldquo;it was cold&rdquo; cannot.</p>
+      </div>
+
+      <label class="req">How bad was it?</label>
+      <select class="sev">
+        <option value="">Choose&hellip;</option>
+        <option>Cosmetic only</option><option>Noticeable to guests</option>
+        <option>Affected service</option><option>Client noticed or commented</option>
+      </select>
+
+      <label class="req">What happened?</label>
+      <input type="text" class="what" maxlength="240" placeholder="What you saw, not how it felt." oninput="cnt(this)">
+      <p class="count"></p>
+
+      <label class="req">Photo of this item</label>
+      <input type="file" class="pic" accept="image/*" onchange="preview(this)">
+      <p class="hint">Required. Take it on your phone &mdash; it uploads straight from here.</p>
+      <img class="thumb" style="display:none">
+    </div>
+  </div>
+</template>
+
+<script>
+/* ---------------- role branching ---------------- */
+function setRole() {
+  var r = document.getElementById('role').value;
+  show('s-captain', r === 'Captain');
+  show('s-bar',     r === 'Bartender');
+  show('s-items',   r === 'Chef' || r === 'Captain');
+}
+function show(id, on) { document.getElementById(id).classList.toggle('on', !!on); }
+function vis(id) { return document.getElementById(id).classList.contains('on'); }
+
+/* ---------------- conditional reveals ---------------- */
+function rev(wrapId, on) { document.getElementById(wrapId).classList.toggle('on', !!on); }
+
+/* shared */
+function eqToggle()    { rev('eqDetailWrap', radio('equipment') && radio('equipment') !== 'Yes'); }
+function truckToggle() { rev('truckWrap', radio('truckOnTime') === 'No'); }
+
+/* captain — existing */
+function gcToggle() { rev('gcWrap', radio('guestConcerns') === 'Yes'); }
+function liToggle() { rev('liWrap', radio('loadIn')  && radio('loadIn')  !== 'Smooth'); }
+function loToggle() { rev('loWrap', radio('loadOut') && radio('loadOut') !== 'Smooth'); }
+
+/* captain — v3 */
+function schedToggle() { rev('schedWrap', radio('onSchedule') === 'No'); }
+function chgToggle()   { rev('chgWrap',   radio('onsiteChanges') === 'Yes'); }
+function otToggle()    { rev('otWrap',     radio('everyoneOnTime') === 'No'); }
+function uniToggle()   { rev('uniWrap',    radio('correctUniform') === 'No'); }
+function dmgToggle()   { rev('dmgWrap',    radio('damagedBroken') === 'Yes'); }
+function safeToggle()  { rev('safeWrap',   radio('safetyIncident') === 'Yes'); }
+function tsToggle()    { rev('tsWrap',     radio('tempStaff') === 'Yes'); }
+function tspToggle()   { rev('tspWrap',    radio('tempProblem') === 'Yes'); }
+function tipToggle()   { rev('tipWrap',    radio('cashTip') === 'Yes'); }
+function vnToggle()    { rev('vnWrap',     radio('venueNotes') === 'Yes'); }
+function cvToggle()    { rev('cvWrap',     radio('coreValue') === 'Yes'); }
+
+/* bar — v3 */
+function bsToggle() { rev('bsWrap', radio('barSetup') === 'No'); }
+function biToggle() { rev('biWrap', radio('barIssue') === 'Yes'); }
+function brToggle() { rev('brWrap', radio('barAlcoholReturned') === 'No'); }
+function bdToggle() { rev('bdWrap', radio('barDamaged') === 'Yes'); }
+function bvToggle() { rev('bvWrap', radio('barVenueNotes') === 'Yes'); }
+function bfToggle() { rev('bfWrap', radio('barFollowUp') === 'Yes'); }
+
+/* items — temperature checkbox */
+function tempToggle(cb) {
+  cb.closest('.inner').querySelector('.tempWrap').classList.toggle('on', cb.checked);
+}
+
+/* ---------------- char counters ---------------- */
+function cnt(el) {
+  var scope = el.closest('.reveal') || el.closest('.inner') || el.parentElement;
+  var p = scope.querySelector('.count');
+  if (!p || !el.maxLength || el.maxLength < 0) return;
+  var left = el.maxLength - el.value.length;
+  p.textContent = left < 40 ? left + ' characters left' : '';
+}
+
+/* ---------------- items ---------------- */
+function renumber() {
+  [].slice.call(document.querySelectorAll('#items .item .n'))
+    .forEach(function (el, i) { el.textContent = i + 1; });
+}
+function addItem() {
+  document.getElementById('items')
+    .appendChild(document.getElementById('tpl').content.cloneNode(true));
+  renumber();
+}
+
+// Downscale before upload. A raw phone photo is 3-5MB and base64 inflates it by a third;
+// three of those will fail on venue wifi at 11pm. 1600px / q0.8 lands around 300KB and is
+// still far more detail than anyone needs to see that a sauce broke.
+function shrink(file) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      var max = 1600, w = img.width, h = img.height;
+      if (w > max || h > max) { var r = Math.min(max / w, max / h); w = Math.round(w * r); h = Math.round(h * r); }
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve({ name: file.name, mimeType: 'image/jpeg',
+                data: c.toDataURL('image/jpeg', 0.8).split(',')[1] });
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
+    img.src = url;
+  });
+}
+function preview(input) {
+  var img = input.closest('.inner').querySelector('.thumb');
+  if (!input.files[0]) { img.style.display = 'none'; return; }
+  img.src = URL.createObjectURL(input.files[0]);
+  img.style.display = 'block';
+}
+
+/* ---------------- plumbing ---------------- */
+// Off Google's servers the report goes out as a cookie-less POST, which a browser signed into
+// several Google accounts cannot break; on the Apps Script page itself, google.script.run is used.
+var ENDPOINT = 'https://script.google.com/macros/s/AKfycbzJ51Q-K4Bfar4d4WNdeuAk1daGHN4NJbiWnENtBXiKo1C3WrvJ-jcjK_D7iF5BQRH3/exec';
+function send(payload, done, fail) {
+  if (window.google && google.script && google.script.run) {
+    google.script.run.withSuccessHandler(done).withFailureHandler(fail).submitReport(payload);
+    return;
+  }
+  fetch(ENDPOINT, { method: 'POST', credentials: 'omit',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+    .then(function (r) { if (!r.ok) throw new Error('the server returned ' + r.status); return r.json(); })
+    .then(done, fail);
+}
+function msg(kind, text) {
+  var m = document.getElementById('msg');
+  m.className = kind; m.textContent = text;
+  m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function radio(n) {
+  var el = document.querySelector('input[name="' + n + '"]:checked');
+  return el ? el.value : '';
+}
+function val(id) { return (document.getElementById(id).value || '').trim(); }
+
+function submit() {
+  var btn = document.getElementById('send');
+
+  /* ---- shared validation ---- */
+  var need = [['eventNumber', 'Event number'], ['eventDate', 'Event date'],
+              ['name', 'Your name'], ['role', 'Your role']];
+  for (var i = 0; i < need.length; i++) {
+    if (!val(need[i][0])) return msg('err', need[i][1] + ' is required.');
+  }
+  if (!/^[0-9]{5}$/.test(val('eventNumber')))
+    return msg('err', 'Event number should be five digits.');
+
+  if (!radio('equipment')) return msg('err', 'Please answer the equipment question.');
+  if (radio('equipment') !== 'Yes' && !val('equipmentDetail'))
+    return msg('err', 'Say which piece of equipment, and what happened.');
+
+  if (!radio('truckOnTime')) return msg('err', 'Please answer the truck arrival question.');
+  if (radio('truckOnTime') === 'No' && !val('truckLateDetail'))
+    return msg('err', 'Say how late the truck was and what happened.');
+
+  if (!radio('service')) return msg('err', 'Please rate how service went.');
+
+  var role = val('role'), captain = null, bar = null;
+
+  /* ---- captain validation ---- */
+  if (role === 'Captain') {
+    var capReq = [['clientCheckIn', 'client check-in'], ['guestConcerns', 'guest concerns'],
+                  ['preShift', 'pre-shift meeting'], ['loadIn', 'setup and load-in'],
+                  ['loadOut', 'breakdown and load-out'], ['venueClosed', 'venue check-out']];
+    for (var c = 0; c < capReq.length; c++)
+      if (!radio(capReq[c][0])) return msg('err', 'Captain section: please answer the ' + capReq[c][1] + ' question.');
+    if (radio('guestConcerns') === 'Yes' && !val('guestConcernsDetail')) return msg('err', 'Describe the guest concern.');
+    if (radio('loadIn')  !== 'Smooth' && !val('loadInDetail'))  return msg('err', 'Say what happened at load-in.');
+    if (radio('loadOut') !== 'Smooth' && !val('loadOutDetail')) return msg('err', 'Say what happened at load-out.');
+    if (!val('capWhereReturned')) return msg('err', 'Say where alcohol, rentals and equipment ended up.');
+
+    /* v3 captain questions */
+    var capReq2 = [['onSchedule', 'event schedule'], ['onsiteChanges', 'onsite changes'],
+                   ['everyoneOnTime', 'punctuality'], ['correctUniform', 'uniform'],
+                   ['damagedBroken', 'damage/loss'], ['safetyIncident', 'safety'],
+                   ['tempStaff', 'temp staff'], ['cashTip', 'cash tip'],
+                   ['venueNotes', 'venue/client notes'], ['coreValue', 'Core Value recognition']];
+    for (var c2 = 0; c2 < capReq2.length; c2++)
+      if (!radio(capReq2[c2][0])) return msg('err', 'Captain section: please answer the ' + capReq2[c2][1] + ' question.');
+    if (radio('onSchedule') === 'No') {
+      if (!val('offScheduleCause')) return msg('err', 'Say what caused the schedule delay.');
+      if (!val('howLate')) return msg('err', 'Say how late the event ran.');
+    }
+    if (radio('onsiteChanges') === 'Yes' && !val('changesDetail')) return msg('err', 'Describe the onsite changes and who approved.');
+    if (radio('everyoneOnTime') === 'No' && !val('punctualityDetail')) return msg('err', 'Say who was late and what happened.');
+    if (radio('correctUniform') === 'No' && !val('uniformDetail')) return msg('err', 'Say who had a uniform issue and what happened.');
+    if (radio('damagedBroken') === 'Yes' && !val('damageDetail')) return msg('err', 'List what was damaged, broken, or missing.');
+    if (radio('safetyIncident') === 'Yes' && !radio('incidentReport')) return msg('err', 'Answer whether the incident report was filed.');
+    if (radio('tempStaff') === 'Yes') {
+      if (!radio('tempProblem')) return msg('err', 'Answer whether there was a temp staff problem.');
+      if (radio('tempProblem') === 'Yes' && !val('tempDetail')) return msg('err', 'Name the temp and say what happened.');
+    }
+    if (radio('cashTip') === 'Yes') {
+      if (!val('tipAmount')) return msg('err', 'Enter the tip amount.');
+      if (!radio('tipShared')) return msg('err', 'Answer whether the tip was shared per policy.');
+    }
+    if (radio('venueNotes') === 'Yes' && !val('venueNotesDetail')) return msg('err', 'Explain what a manager should know about this venue/client.');
+    if (radio('coreValue') === 'Yes' && !val('coreValueDetail')) return msg('err', 'Say who, what they did, and which Core Value.');
+
+    captain = {
+      clientCheckIn: radio('clientCheckIn'), guestConcerns: radio('guestConcerns'),
+      guestConcernsDetail: val('guestConcernsDetail'), preShift: radio('preShift'),
+      loadIn: radio('loadIn'), loadInDetail: val('loadInDetail'),
+      loadOut: radio('loadOut'), loadOutDetail: val('loadOutDetail'),
+      venueClosed: radio('venueClosed'), whereReturned: val('capWhereReturned'),
+      onSchedule: radio('onSchedule'), offScheduleCause: val('offScheduleCause'), howLate: val('howLate'),
+      onsiteChanges: radio('onsiteChanges'), changesDetail: val('changesDetail'),
+      everyoneOnTime: radio('everyoneOnTime'), punctualityDetail: val('punctualityDetail'),
+      correctUniform: radio('correctUniform'), uniformDetail: val('uniformDetail'),
+      damagedBroken: radio('damagedBroken'), damageDetail: val('damageDetail'),
+      safetyIncident: radio('safetyIncident'), incidentReport: radio('incidentReport'),
+      tempStaff: radio('tempStaff'), tempProblem: radio('tempProblem'), tempDetail: val('tempDetail'),
+      cashTip: radio('cashTip'), tipAmount: val('tipAmount'), tipShared: radio('tipShared'),
+      venueNotes: radio('venueNotes'), venueNotesDetail: val('venueNotesDetail'),
+      coreValue: radio('coreValue'), coreValueDetail: val('coreValueDetail')
+    };
+  }
+
+  /* ---- bar validation ---- */
+  if (role === 'Bartender') {
+    if (!radio('barSetup')) return msg('err', 'Bar section: answer the bar setup question.');
+    if (radio('barSetup') === 'No' && !val('barSetupDetail')) return msg('err', 'Describe how the bar setup was different.');
+    if (!radio('barSupplies')) return msg('err', 'Bar section: answer the supplies question.');
+    if (!radio('barIssue')) return msg('err', 'Bar section: answer the guest/alcohol issue question.');
+    if (radio('barIssue') === 'Yes' && !val('barIssueDetail')) return msg('err', 'Describe the guest or alcohol issue.');
+    if (!radio('barAlcoholReturned')) return msg('err', 'Bar section: answer the alcohol return question.');
+    if (radio('barAlcoholReturned') === 'No' && !val('barReturnDetail')) return msg('err', 'Say where the alcohol was left.');
+    if (!radio('barDamaged')) return msg('err', 'Bar section: answer the damaged/missing question.');
+    if (radio('barDamaged') === 'Yes' && !val('barDamageDetail')) return msg('err', 'List what was damaged or missing from the bar.');
+    if (!radio('barVenueNotes')) return msg('err', 'Bar section: answer the venue/client notes question.');
+    if (radio('barVenueNotes') === 'Yes' && !val('barVenueDetail')) return msg('err', 'Explain what a manager should know.');
+    if (!radio('barFollowUp')) return msg('err', 'Bar section: answer the follow-up question.');
+    if (radio('barFollowUp') === 'Yes' && !val('barFollowDetail')) return msg('err', 'Explain what needs follow-up.');
+    bar = {
+      barSetup: radio('barSetup'), barSetupDetail: val('barSetupDetail'),
+      allSupplies: radio('barSupplies'),
+      guestIssue: radio('barIssue'), issueDetail: val('barIssueDetail'),
+      invVodka: val('invVodka'), invGin: val('invGin'), invRum: val('invRum'),
+      invBourbon: val('invBourbon'), invWhiskey: val('invWhiskey'), invScotch: val('invScotch'),
+      invTequila: val('invTequila'), invOther: val('invOther'),
+      invDryVermouth: val('invDryVermouth'), invSweetVermouth: val('invSweetVermouth'),
+      invTripleSec: val('invTripleSec'), invWineChampagne: val('invWineChampagne'),
+      invBeer: val('invBeer'), invClubSodaTonic: val('invClubSodaTonic'),
+      invSoda: val('invSoda'), invJuice: val('invJuice'), invIceBags: val('invIceBags'),
+      alcoholReturned: radio('barAlcoholReturned'), alcoholReturnDetail: val('barReturnDetail'),
+      barDamaged: radio('barDamaged'), barDamageDetail: val('barDamageDetail'),
+      barVenueNotes: radio('barVenueNotes'), barVenueDetail: val('barVenueDetail'),
+      barFollowUp: radio('barFollowUp'), barFollowDetail: val('barFollowDetail')
+    };
+  }
+
+  /* ---- item validation (chef + captain) ---- */
+  var blocks = vis('s-items') ? [].slice.call(document.querySelectorAll('#items .item')) : [];
+  for (var k = 0; k < blocks.length; k++) {
+    var b = blocks[k], n = k + 1;
+    if (!b.querySelector('.menuItem').value.trim()) return msg('err', 'Item ' + n + ': name the menu item.');
+    var probs = [].slice.call(b.querySelectorAll('.probs input:checked'));
+    if (!probs.length) return msg('err', 'Item ' + n + ': pick at least one problem.');
+    var isTemp = probs.some(function (p) { return p.value === 'Temperature'; });
+    if (isTemp && !b.querySelector('.tempF').value)
+      return msg('err', 'Item ' + n + ': give the temperature reading in °F.');
+    if (!b.querySelector('.sev').value)         return msg('err', 'Item ' + n + ': choose how bad it was.');
+    if (!b.querySelector('.what').value.trim()) return msg('err', 'Item ' + n + ': say what happened.');
+    if (!b.querySelector('.pic').files[0])      return msg('err', 'Item ' + n + ': a photo is required.');
+  }
+
+  btn.disabled = true; btn.textContent = 'Sending…';
+  msg('ok', 'Uploading…');
+
+  Promise.all(blocks.map(function (b) {
+    return shrink(b.querySelector('.pic').files[0]).then(function (photo) {
+      return {
+        menuItem: b.querySelector('.menuItem').value.trim(),
+        problems: [].slice.call(b.querySelectorAll('.probs input:checked')).map(function (c) { return c.value; }),
+        tempF:    b.querySelector('.tempF').value,
+        severity: b.querySelector('.sev').value,
+        what:     b.querySelector('.what').value.trim(),
+        photo:    photo
+      };
+    });
+  })).then(function (items) {
+    var payload = {
+      eventNumber: val('eventNumber'), eventDate: val('eventDate'), name: val('name'),
+      email: val('email'), role: role,
+      equipment: radio('equipment'), equipmentDetail: val('equipmentDetail'),
+      truckOnTime: radio('truckOnTime'), truckLateDetail: val('truckLateDetail'),
+      service: radio('service'), wentWell: val('wentWell'), otherNotes: val('otherNotes'),
+      captain: captain, bar: bar, items: items
+    };
+    send(payload, function (res) {
+      btn.disabled = false; btn.textContent = 'Send report';
+      if (!res || !res.ok) return msg('err', 'Not saved: ' + ((res && res.error) || 'unknown error') + ' — screenshot this and text Miguel.');
+      document.getElementById('f').style.display = 'none';
+      document.getElementById('guide').style.display = 'none';
+      msg('ok', 'Got it — thank you. ' + (res.items ? res.items + ' item(s) flagged.' : 'No items flagged.'));
+    }, function (e) {
+      btn.disabled = false; btn.textContent = 'Send report';
+      msg('err', 'Could not send: ' + e.message + ' — check your signal and try again. Nothing was lost.');
+    });
+  }).catch(function (e) {
+    btn.disabled = false; btn.textContent = 'Send report';
+    msg('err', e.message);
+  });
+}
+
+</script>
+</body>
+</html>
