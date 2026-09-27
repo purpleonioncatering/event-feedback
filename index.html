@@ -115,12 +115,14 @@
         <option>Chef</option>
         <option>Captain</option>
         <option>Bartender</option>
+        <option value="Sales">Sales (event designer / associate)</option>
       </select>
     </fieldset>
 
     <fieldset id="s-how">
       <legend>How it went</legend>
 
+      <div id="opsQs"><!-- not asked of Sales: they don't see load-in -->
       <label class="req">Was all the equipment on the truck and working?</label>
       <div class="choices">
         <label><input type="radio" name="equipment" value="Yes" onchange="eqToggle()">Yes</label>
@@ -153,6 +155,7 @@
         <label><input type="radio" name="service" value="3">3</label>
         <label><input type="radio" name="service" value="4">4</label>
         <label><input type="radio" name="service" value="5">5</label>
+      </div>
       </div>
 
       <label>Anything that went well and should be repeated?</label>
@@ -469,7 +472,62 @@
       </div>
     </fieldset>
 
-    <!-- ============ ITEM LOOP - chef + captain ============ -->
+    <!-- ============ SALES ONLY ============ -->
+    <fieldset class="roleonly" id="s-sales">
+      <legend>Sales &mdash; the client</legend>
+
+      <label class="req">Were you on site?</label>
+      <div class="choices">
+        <label><input type="radio" name="onSite" value="Whole event">Whole event</label>
+        <label><input type="radio" name="onSite" value="Part of it">Part of it</label>
+        <label><input type="radio" name="onSite" value="Not on site (heard from the client)">Not on site &mdash; heard from the client</label>
+      </div>
+
+      <label class="req">How happy was the client? (1 unhappy &mdash; 5 thrilled)</label>
+      <div class="choices">
+        <label><input type="radio" name="clientHappy" value="1">1</label>
+        <label><input type="radio" name="clientHappy" value="2">2</label>
+        <label><input type="radio" name="clientHappy" value="3">3</label>
+        <label><input type="radio" name="clientHappy" value="4">4</label>
+        <label><input type="radio" name="clientHappy" value="5">5</label>
+      </div>
+
+      <label>What did the client say?</label>
+      <input type="text" id="clientSaid" maxlength="300" oninput="cnt(this)"
+             placeholder="Their words, good or bad">
+      <p class="count"></p>
+
+      <label class="req">Did the event match what was sold?</label>
+      <div class="choices">
+        <label><input type="radio" name="matchedSold" value="Yes" onchange="soldToggle()">Yes</label>
+        <label><input type="radio" name="matchedSold" value="No" onchange="soldToggle()">No</label>
+      </div>
+      <div class="reveal" id="soldWrap">
+        <label class="req">What was different?</label>
+        <input type="text" id="soldDiff" maxlength="300" oninput="cnt(this)"
+               placeholder="Menu, timing, setup, counts">
+        <p class="count"></p>
+      </div>
+
+      <label class="req">Does the client need a follow-up?</label>
+      <div class="choices">
+        <label><input type="radio" name="followUp" value="No" onchange="fuToggle()">No</label>
+        <label><input type="radio" name="followUp" value="Yes" onchange="fuToggle()">Yes</label>
+      </div>
+      <div class="reveal" id="fuWrap">
+        <label class="req">What needs following up?</label>
+        <input type="text" id="followDetail" maxlength="300" oninput="cnt(this)">
+        <p class="count"></p>
+        <label class="req">How urgent?</label>
+        <div class="choices">
+          <label><input type="radio" name="followUrgency" value="Today">Today</label>
+          <label><input type="radio" name="followUrgency" value="This week">This week</label>
+          <label><input type="radio" name="followUrgency" value="Just FYI">Just FYI</label>
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- ============ ITEM LOOP - chef + captain + sales ============ -->
     <fieldset class="roleonly" id="s-items">
       <legend>Items that had a problem</legend>
       <p class="hint" style="margin:0 0 .9rem">
@@ -553,9 +611,9 @@
       <input type="text" class="what" maxlength="240" placeholder="What you saw, not how it felt." oninput="cnt(this)">
       <p class="count"></p>
 
-      <label class="req">Photo of this item</label>
+      <label class="req picLabel">Photo of this item</label>
       <input type="file" class="pic" accept="image/*" onchange="preview(this)">
-      <p class="hint">Required. Take it on your phone &mdash; it uploads straight from here.</p>
+      <p class="hint picHint">Required. Take it on your phone &mdash; it uploads straight from here.</p>
       <img class="thumb" style="display:none">
     </div>
   </div>
@@ -567,7 +625,20 @@ function setRole() {
   var r = document.getElementById('role').value;
   show('s-captain', r === 'Captain');
   show('s-bar',     r === 'Bartender');
-  show('s-items',   r === 'Chef' || r === 'Captain');
+  show('s-sales',   r === 'Sales');
+  show('s-items',   r === 'Chef' || r === 'Captain' || r === 'Sales');
+  document.getElementById('opsQs').style.display = r === 'Sales' ? 'none' : '';
+  photoRule();
+}
+/* Item photos: required from the people handling the food, optional for sales. */
+function photoRequired() { return val('role') !== 'Sales'; }
+function photoRule() {
+  var req = photoRequired();
+  [].slice.call(document.querySelectorAll('#items .picLabel')).forEach(function (l) { l.classList.toggle('req', req); });
+  [].slice.call(document.querySelectorAll('#items .picHint')).forEach(function (p) {
+    p.textContent = req ? 'Required. Take it on your phone — it uploads straight from here.'
+                        : 'Optional for sales. If you have one, it uploads straight from here.';
+  });
 }
 function show(id, on) { document.getElementById(id).classList.toggle('on', !!on); }
 function vis(id) { return document.getElementById(id).classList.contains('on'); }
@@ -605,6 +676,10 @@ function bdToggle() { rev('bdWrap', radio('barDamaged') === 'Yes'); }
 function bvToggle() { rev('bvWrap', radio('barVenueNotes') === 'Yes'); }
 function bfToggle() { rev('bfWrap', radio('barFollowUp') === 'Yes'); }
 
+/* sales */
+function soldToggle() { rev('soldWrap', radio('matchedSold') === 'No'); }
+function fuToggle()   { rev('fuWrap',   radio('followUp') === 'Yes'); }
+
 /* items — temperature checkbox */
 function tempToggle(cb) {
   cb.closest('.inner').querySelector('.tempWrap').classList.toggle('on', cb.checked);
@@ -628,6 +703,7 @@ function addItem() {
   document.getElementById('items')
     .appendChild(document.getElementById('tpl').content.cloneNode(true));
   renumber();
+  photoRule();
 }
 
 // Downscale before upload. A raw phone photo is 3-5MB and base64 inflates it by a third;
@@ -693,17 +769,37 @@ function submit() {
   if (!/^[0-9]{5}$/.test(val('eventNumber')))
     return msg('err', 'Event number should be five digits.');
 
-  if (!radio('equipment')) return msg('err', 'Please answer the equipment question.');
-  if (radio('equipment') !== 'Yes' && !val('equipmentDetail'))
-    return msg('err', 'Say which piece of equipment, and what happened.');
+  var role = val('role'), captain = null, bar = null, sales = null;
 
-  if (!radio('truckOnTime')) return msg('err', 'Please answer the truck arrival question.');
-  if (radio('truckOnTime') === 'No' && !val('truckLateDetail'))
-    return msg('err', 'Say how late the truck was and what happened.');
+  if (role !== 'Sales') {   // sales don't see load-in, so these three are not asked of them
+    if (!radio('equipment')) return msg('err', 'Please answer the equipment question.');
+    if (radio('equipment') !== 'Yes' && !val('equipmentDetail'))
+      return msg('err', 'Say which piece of equipment, and what happened.');
 
-  if (!radio('service')) return msg('err', 'Please rate how service went.');
+    if (!radio('truckOnTime')) return msg('err', 'Please answer the truck arrival question.');
+    if (radio('truckOnTime') === 'No' && !val('truckLateDetail'))
+      return msg('err', 'Say how late the truck was and what happened.');
 
-  var role = val('role'), captain = null, bar = null;
+    if (!radio('service')) return msg('err', 'Please rate how service went.');
+  }
+
+  /* ---- sales validation ---- */
+  if (role === 'Sales') {
+    if (!radio('onSite')) return msg('err', 'Sales section: say whether you were on site.');
+    if (!radio('clientHappy')) return msg('err', 'Sales section: rate how happy the client was.');
+    if (!radio('matchedSold')) return msg('err', 'Sales section: say whether the event matched what was sold.');
+    if (radio('matchedSold') === 'No' && !val('soldDiff')) return msg('err', 'Say what was different from what was sold.');
+    if (!radio('followUp')) return msg('err', 'Sales section: say whether the client needs a follow-up.');
+    if (radio('followUp') === 'Yes') {
+      if (!val('followDetail')) return msg('err', 'Say what needs following up.');
+      if (!radio('followUrgency')) return msg('err', 'Say how urgent the follow-up is.');
+    }
+    sales = {
+      onSite: radio('onSite'), clientHappy: radio('clientHappy'), clientSaid: val('clientSaid'),
+      matchedSold: radio('matchedSold'), soldDiff: val('soldDiff'),
+      followUp: radio('followUp'), followDetail: val('followDetail'), followUrgency: radio('followUrgency')
+    };
+  }
 
   /* ---- captain validation ---- */
   if (role === 'Captain') {
@@ -809,14 +905,15 @@ function submit() {
       return msg('err', 'Item ' + n + ': give the temperature reading in °F.');
     if (!b.querySelector('.sev').value)         return msg('err', 'Item ' + n + ': choose how bad it was.');
     if (!b.querySelector('.what').value.trim()) return msg('err', 'Item ' + n + ': say what happened.');
-    if (!b.querySelector('.pic').files[0])      return msg('err', 'Item ' + n + ': a photo is required.');
+    if (photoRequired() && !b.querySelector('.pic').files[0]) return msg('err', 'Item ' + n + ': a photo is required.');
   }
 
   btn.disabled = true; btn.textContent = 'Sending…';
   msg('ok', 'Uploading…');
 
   Promise.all(blocks.map(function (b) {
-    return shrink(b.querySelector('.pic').files[0]).then(function (photo) {
+    var file = b.querySelector('.pic').files[0];
+    return (file ? shrink(file) : Promise.resolve(null)).then(function (photo) {
       return {
         menuItem: b.querySelector('.menuItem').value.trim(),
         problems: [].slice.call(b.querySelectorAll('.probs input:checked')).map(function (c) { return c.value; }),
@@ -833,11 +930,11 @@ function submit() {
       equipment: radio('equipment'), equipmentDetail: val('equipmentDetail'),
       truckOnTime: radio('truckOnTime'), truckLateDetail: val('truckLateDetail'),
       service: radio('service'), wentWell: val('wentWell'), otherNotes: val('otherNotes'),
-      captain: captain, bar: bar, items: items
+      captain: captain, bar: bar, sales: sales, items: items
     };
     send(payload, function (res) {
       btn.disabled = false; btn.textContent = 'Send report';
-      if (!res || !res.ok) return msg('err', 'Not saved: ' + ((res && res.error) || 'unknown error') + ' — screenshot this and text Miguel.');
+      if (!res || !res.ok) return msg('err', 'Not saved: ' + ((res && res.error) || 'unknown error') + ' — screenshot this and email it to kitchen@purpleonioncatering.com.');
       document.getElementById('f').style.display = 'none';
       document.getElementById('guide').style.display = 'none';
       msg('ok', 'Got it — thank you. ' + (res.items ? res.items + ' item(s) flagged.' : 'No items flagged.'));
