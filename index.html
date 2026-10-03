@@ -14,6 +14,13 @@
   header { background:var(--plum); color:#fff; padding:1.1rem 1.2rem; }
   header h1 { margin:0; font-size:1.15rem; font-weight:600; }
   header p  { margin:.35rem 0 0; font-size:.85rem; opacity:.9; }
+  header { position:relative; }
+  header h1, header p { padding-right:6.5rem; }
+  #langBtn { position:absolute; top:.9rem; right:1rem; background:transparent; color:#fff;
+             border:1px solid rgba(255,255,255,.8); border-radius:999px; padding:.35rem .9rem;
+             font:inherit; font-size:.85rem; font-weight:600; }
+  #esNote { display:none; font-weight:600; opacity:1; }
+  html[lang="es"] #esNote { display:block; }
 
   .wrap { max-width:1240px; margin:0 auto; padding:1.2rem; display:grid; gap:1.2rem;
           grid-template-columns:minmax(0,1fr); align-items:start; }
@@ -85,8 +92,10 @@
 <body>
 
 <header>
+  <button type="button" id="langBtn" onclick="toggleLang()" lang="es">Español</button>
   <h1>Purple Onion &mdash; Event Feedback</h1>
   <p>Due within 24 hours of the event. About a minute if nothing went wrong.</p>
+  <p id="esNote" lang="es">Puedes contestar en español &mdash; lo traducimos al inglés automáticamente.</p>
 </header>
 
 <div class="wrap">
@@ -122,9 +131,9 @@
       <label class="req">Your role</label>
       <select id="role" required onchange="setRole()">
         <option value="">Choose&hellip;</option>
-        <option>Chef</option>
-        <option>Captain</option>
-        <option>Bartender</option>
+        <option value="Chef">Chef</option>
+        <option value="Captain">Captain</option>
+        <option value="Bartender">Bartender</option>
         <option value="Sales">Sales (event designer / associate)</option>
       </select>
     </fieldset>
@@ -613,8 +622,8 @@
       <label class="req">How bad was it?</label>
       <select class="sev">
         <option value="">Choose&hellip;</option>
-        <option>Cosmetic only</option><option>Noticeable to guests</option>
-        <option>Affected service</option><option>Client noticed or commented</option>
+        <option value="Cosmetic only">Cosmetic only</option><option value="Noticeable to guests">Noticeable to guests</option>
+        <option value="Affected service">Affected service</option><option value="Client noticed or commented">Client noticed or commented</option>
       </select>
 
       <label class="req">What happened?</label>
@@ -630,6 +639,241 @@
 </template>
 
 <script>
+/* ---------------- English / Español (v6, 2026-10-02) ----------------
+   Only what people READ changes. Radio and select VALUES stay English, so the sheet is the same
+   whichever language the form was filled in; free-text answers are translated to English by the
+   backend (LanguageApp) and the Spanish original is kept in its own column. Casual "tú" throughout.
+   Lookup works both ways off one table, so labels that JS rewrites later still flip back. */
+var ES = {
+  'Purple Onion — Event Feedback': 'Purple Onion — Reporte del evento',
+  'Due within 24 hours of the event. About a minute if nothing went wrong.': 'Entrégalo dentro de las 24 horas del evento. Toma como un minuto si todo salió bien.',
+  'Interpersonal issues': 'Problemas interpersonales',
+  'For interpersonal issues, please reach out to your direct manager or HR at:': 'Para problemas interpersonales, comunícate con tu supervisor directo o con Recursos Humanos en:',
+  'The event': 'El evento', 'Event number': 'Número de evento', 'The 5-digit invoice number.': 'El número de factura de 5 dígitos.',
+  'Event date': 'Fecha del evento', 'Your name': 'Tu nombre', 'Your email': 'Tu correo electrónico',
+  'Optional — only so we can follow up if we have a question.': 'Opcional — solo para contactarte si tenemos alguna pregunta.',
+  'Your role': 'Tu puesto', 'Choose…': 'Elige…', 'Captain': 'Capitán',
+  'Sales (event designer / associate)': 'Ventas (diseñador/a o asociado/a de eventos)',
+  'How it went': 'Cómo salió',
+  'Was all the equipment on the truck and working?': '¿Todo el equipo estaba en el camión y funcionando?',
+  'Yes': 'Sí', 'Something was missing': 'Faltaba algo', 'Something was broken': 'Algo estaba roto',
+  'Which piece, and what happened?': '¿Qué pieza y qué pasó?',
+  '2 of 4 induction burners dead on arrival': '2 de 4 hornillas de inducción no funcionaban al llegar',
+  'Did the truck arrive on time?': '¿El camión llegó a tiempo?',
+  'How late, and what happened?': '¿Qué tan tarde y qué pasó?',
+  '30 minutes late, wrong address given to driver': '30 minutos tarde, le dieron la dirección equivocada al chofer',
+  'How did service go overall? (1 rough — 5 excellent)': '¿Cómo salió el servicio en general? (1 difícil — 5 excelente)',
+  'Anything that went well and should be repeated?': '¿Algo que salió bien y se debería repetir?',
+  'Anything else not tied to a specific dish?': '¿Algo más que no tenga que ver con un plato en específico?',
+  'Venue, timing, logistics. Personnel problems go on the HR form, not here.': 'Lugar, horarios, logística. Los problemas con personal van con Recursos Humanos, no aquí.',
+  'Captain — the room': 'Capitán — el salón',
+  'Did you check in with the client or host before leaving?': '¿Hablaste con el cliente o anfitrión antes de irte?',
+  'Could not reach them': 'No pude localizarlos',
+  'Any guest concerns?': '¿Hubo alguna queja de invitados?', 'None': 'Ninguna',
+  'What was it, and how did you handle it?': '¿Qué fue y cómo lo resolviste?',
+  'Was a pre-shift meeting done with all staff?': '¿Se hizo una reunión antes del turno con todo el personal?',
+  'How did setup and load-in go?': '¿Cómo salió el montaje y la descarga?',
+  'Smooth': 'Sin problemas', 'Minor issues': 'Problemas menores', 'Significant problems': 'Problemas serios',
+  'What happened?': '¿Qué pasó?',
+  'How did breakdown and load-out go?': '¿Cómo salió el desmontaje y la carga?',
+  'Venue left clean, and checked out with the venue contact?': '¿Dejaron el lugar limpio y se reportaron con el contacto del lugar?',
+  'Yes, both': 'Sí, las dos cosas', 'Left clean, no contact available': 'Quedó limpio, no había contacto disponible',
+  'Where were alcohol, rentals and equipment left or returned?': '¿Dónde se dejaron o devolvieron el alcohol, los alquileres y el equipo?',
+  'All rentals stacked at the loading dock; alcohol back on the truck': 'Todos los alquileres apilados en el muelle de carga; el alcohol de vuelta en el camión',
+  'Did the event stay on schedule?': '¿El evento se mantuvo en horario?',
+  'What caused the delay?': '¿Qué causó el retraso?',
+  'Ceremony ran 45 min over, venue not ready at load-in time': 'La ceremonia se alargó 45 min, el lugar no estaba listo a la hora de descarga',
+  'How late?': '¿Qué tan tarde?', '15 minutes, 1 hour, etc.': '15 minutos, 1 hora, etc.',
+  'Were any important changes made to the event plan while onsite?': '¿Se hizo algún cambio importante al plan del evento en el lugar?',
+  'What changed, and who approved it?': '¿Qué cambió y quién lo aprobó?',
+  'Added 20 covers for dessert, approved by the event planner on-site': 'Se agregaron 20 porciones de postre, aprobado por el organizador en el lugar',
+  'Was everyone on time?': '¿Todos llegaron a tiempo?',
+  'Who was late, and what happened?': '¿Quién llegó tarde y qué pasó?',
+  'Was everyone in the correct uniform?': '¿Todos tenían el uniforme correcto?',
+  'Who, and what was the issue?': '¿Quién y cuál fue el problema?',
+  'Was anything damaged, broken, or missing at the end of the event?': '¿Algo se dañó, se rompió o faltaba al final del evento?',
+  'What items, and what happened?': '¿Qué artículos y qué pasó?',
+  'Was anyone hurt, was anything damaged, or was there a safety problem?': '¿Alguien se lastimó, se dañó algo o hubo algún problema de seguridad?',
+  'Did you tell a manager and complete the incident report?': '¿Le avisaste a un gerente y llenaste el reporte de incidente?',
+  'Did you have temporary staff at this event?': '¿Hubo personal temporal en este evento?',
+  'Was there a problem with any temp staff?': '¿Hubo algún problema con el personal temporal?',
+  'Name and what you saw': 'Nombre y lo que viste', 'Name of the temp and what happened': 'Nombre de la persona temporal y qué pasó',
+  'Did you receive a cash tip?': '¿Recibiste propina en efectivo?', 'Amount ($)': 'Cantidad ($)',
+  'Was it shared per company policy?': '¿Se repartió según la política de la empresa?',
+  'Is there anything a manager should know before our next event at this venue or with this client?': '¿Hay algo que un gerente deba saber antes de nuestro próximo evento en este lugar o con este cliente?',
+  'Explain': 'Explica',
+  'Did anyone demonstrate a Core Value in a way that deserves special recognition?': '¿Alguien demostró un Valor Fundamental de una forma que merezca un reconocimiento especial?',
+  'Who, what they did, and which Core Value': 'Quién, qué hizo y cuál Valor Fundamental',
+  'Name, what they did, and which Core Value it represents': 'Nombre, qué hizo y qué Valor Fundamental representa',
+  'Was the bar set up and presented according to the event plan?': '¿El bar se montó y presentó según el plan del evento?',
+  'What was different?': '¿Qué fue diferente?',
+  'Did you have all alcohol, mixers, garnishes, ice, and supplies?': '¿Tenías todo el alcohol, mezcladores, decoraciones, hielo y suministros?',
+  'Was there a guest or alcohol-related issue?': '¿Hubo algún problema con invitados o con el alcohol?',
+  'Intoxicated guest, shots requested, a refusal...': 'Invitado intoxicado, pidieron shots, se negó servicio...',
+  'Bottle / item counts (leave blank if none)': 'Conteo de botellas / artículos (déjalo en blanco si no hay)',
+  'Gin': 'Ginebra', 'Rum': 'Ron', 'Other liquor': 'Otro licor', 'Dry Vermouth': 'Vermut seco',
+  'Sweet Vermouth': 'Vermut dulce', 'Wine / Champagne': 'Vino / Champaña', 'Beer': 'Cerveza',
+  'Club Soda / Tonic': 'Agua mineral / Tónica', 'Unopened ice bags': 'Bolsas de hielo sin abrir',
+  'Soda — list types and counts': 'Refrescos — tipos y cantidades',
+  'Juice — list types and counts': 'Jugos — tipos y cantidades',
+  'OJ 2, Cranberry 1, Grapefruit 1': 'Naranja 2, Arándano 1, Toronja 1',
+  'Was all leftover alcohol returned to the correct location?': '¿Todo el alcohol sobrante se devolvió al lugar correcto?',
+  'Where was it left?': '¿Dónde se dejó?',
+  'Was anything from the bar missing, broken, or damaged?': '¿Faltaba, se rompió o se dañó algo del bar?',
+  'Is there anything else from the bar that a manager needs to follow up on?': '¿Hay algo más del bar que un gerente deba revisar?',
+  'Sales — the client': 'Ventas — el cliente', 'Were you on site?': '¿Estuviste en el lugar?',
+  'Whole event': 'Todo el evento', 'Part of it': 'Parte del evento',
+  'Not on site — heard from the client': 'No estuve — me enteré por el cliente',
+  'How happy was the client? (1 unhappy — 5 thrilled)': '¿Qué tan contento quedó el cliente? (1 descontento — 5 encantado)',
+  'What did the client say?': '¿Qué dijo el cliente?', 'Their words, good or bad': 'Sus palabras, buenas o malas',
+  'Did the event match what was sold?': '¿El evento coincidió con lo que se vendió?',
+  'Menu, timing, setup, counts': 'Menú, horarios, montaje, cantidades',
+  'Does the client need a follow-up?': '¿El cliente necesita seguimiento?',
+  'What needs following up?': '¿Qué necesita seguimiento?', 'How urgent?': '¿Qué tan urgente?',
+  'Today': 'Hoy', 'This week': 'Esta semana', 'Just FYI': 'Solo para información',
+  'Items that had a problem': 'Platos que tuvieron un problema',
+  'Only if something went wrong. One block per item — each gets its own problem and its own photo. Nothing wrong? Leave this empty and send.': 'Solo si algo salió mal. Un bloque por plato — cada uno con su propio problema y su propia foto. ¿Nada salió mal? Déjalo vacío y envía.',
+  '+ Add an item that had a problem': '+ Agregar un plato que tuvo un problema',
+  'Send report': 'Enviar reporte', 'Sending…': 'Enviando…', 'Uploading…': 'Subiendo…',
+  'What good feedback looks like': 'Cómo se ve un buen reporte',
+  'Facts, not feelings. A number beats an adjective.': 'Hechos, no sentimientos. Un número vale más que un adjetivo.',
+  'Name the item exactly as it reads on the production worksheet.': 'Escribe el nombre del plato exactamente como aparece en la hoja de producción.',
+  'Temperature? Give the actual reading.': '¿Temperatura? Da la lectura exacta.',
+  'Personnel problems don’t go here.': 'Los problemas con personal no van aquí.',
+  'Good': 'Bien', 'Weak': 'Flojo',
+  '— “2 of 4 induction burners dead on arrival”': '— “2 de 4 hornillas de inducción no funcionaban al llegar”',
+  '— “equipment was a mess”': '— “el equipo era un desastre”',
+  '— “Short rib arrived at 118°F, held 40 min in the hotbox”': '— “La costilla llegó a 118°F, estuvo 40 min en el hotbox”',
+  '— “beef was cold”': '— “la carne estaba fría”',
+  '— “Sent 180 crab cakes for 220 covers, ran out at 9:15”': '— “Mandaron 180 crab cakes para 220 personas, se acabaron a las 9:15”',
+  '— “we ran short on apps”': '— “nos faltaron aperitivos”',
+  'Item': 'Plato', 'remove': 'quitar', 'Which menu item?': '¿Qué plato del menú?',
+  'Exact name from the production worksheet': 'Nombre exacto de la hoja de producción',
+  'The exact name is what lets us trace it back to the recipe.': 'El nombre exacto es lo que nos permite encontrar la receta.',
+  'What was the problem?': '¿Cuál fue el problema?',
+  'Quantity short': 'Faltó cantidad', 'Quantity excess': 'Sobró cantidad', 'Flavor / seasoning': 'Sabor / sazón',
+  'Temperature — out of range': 'Temperatura — fuera de rango',
+  'Quality or condition on arrival': 'Calidad o estado al llegar',
+  'Recipe or spec unclear / wrong': 'Receta o especificación confusa / incorrecta',
+  'Wrong item sent': 'Mandaron el plato equivocado', 'Missing entirely': 'Faltó por completo',
+  'Did not hold or reheat well': 'No aguantó o no se recalentó bien',
+  'Allergen or dietary issue': 'Problema de alérgenos o dieta', 'Other': 'Otro',
+  'What did it read, in °F?': '¿Qué marcó, en °F?',
+  'The actual number off the thermometer. This is what settles a food-safety escalation — “it was cold” cannot.': 'El número exacto del termómetro. Eso es lo que resuelve un caso de seguridad alimentaria — “estaba frío” no.',
+  'How bad was it?': '¿Qué tan grave fue?',
+  'Cosmetic only': 'Solo apariencia', 'Noticeable to guests': 'Los invitados lo notaron',
+  'Affected service': 'Afectó el servicio', 'Client noticed or commented': 'El cliente lo notó o comentó',
+  'What you saw, not how it felt.': 'Lo que viste, no cómo te sentiste.',
+  'Photo of this item': 'Foto de este plato',
+  'Required. Take it on your phone — it uploads straight from here.': 'Obligatoria. Tómala con tu celular — se sube directo desde aquí.',
+  'Optional for sales. If you have one, it uploads straight from here.': 'Opcional para ventas. Si tienes una, se sube directo desde aquí.',
+  /* validation messages */
+  'Event number should be five digits.': 'El número de evento debe tener cinco dígitos.',
+  'Please answer the equipment question.': 'Responde la pregunta del equipo.',
+  'Say which piece of equipment, and what happened.': 'Di qué pieza del equipo y qué pasó.',
+  'Please answer the truck arrival question.': 'Responde la pregunta de la llegada del camión.',
+  'Say how late the truck was and what happened.': 'Di qué tan tarde llegó el camión y qué pasó.',
+  'Please rate how service went.': 'Califica cómo salió el servicio.',
+  'Sales section: say whether you were on site.': 'Sección de ventas: di si estuviste en el lugar.',
+  'Sales section: rate how happy the client was.': 'Sección de ventas: califica qué tan contento quedó el cliente.',
+  'Sales section: say whether the event matched what was sold.': 'Sección de ventas: di si el evento coincidió con lo vendido.',
+  'Say what was different from what was sold.': 'Di qué fue diferente de lo que se vendió.',
+  'Sales section: say whether the client needs a follow-up.': 'Sección de ventas: di si el cliente necesita seguimiento.',
+  'Say what needs following up.': 'Di qué necesita seguimiento.',
+  'Say how urgent the follow-up is.': 'Di qué tan urgente es el seguimiento.',
+  'client check-in': 'hablar con el cliente', 'guest concerns': 'quejas de invitados',
+  'pre-shift meeting': 'reunión antes del turno', 'setup and load-in': 'montaje y descarga',
+  'breakdown and load-out': 'desmontaje y carga', 'venue check-out': 'salida del lugar',
+  'event schedule': 'horario del evento', 'onsite changes': 'cambios en el lugar', 'punctuality': 'puntualidad',
+  'uniform': 'uniforme', 'damage/loss': 'daños/pérdidas', 'safety': 'seguridad', 'temp staff': 'personal temporal',
+  'cash tip': 'propina en efectivo', 'venue/client notes': 'notas del lugar/cliente',
+  'Core Value recognition': 'reconocimiento de Valor Fundamental',
+  'Describe the guest concern.': 'Describe la queja del invitado.',
+  'Say what happened at load-in.': 'Di qué pasó en la descarga.',
+  'Say what happened at load-out.': 'Di qué pasó en la carga.',
+  'Say where alcohol, rentals and equipment ended up.': 'Di dónde quedaron el alcohol, los alquileres y el equipo.',
+  'Say what caused the schedule delay.': 'Di qué causó el retraso.',
+  'Say how late the event ran.': 'Di qué tan tarde se fue el evento.',
+  'Describe the onsite changes and who approved.': 'Describe los cambios en el lugar y quién los aprobó.',
+  'Say who was late and what happened.': 'Di quién llegó tarde y qué pasó.',
+  'Say who had a uniform issue and what happened.': 'Di quién tuvo problema de uniforme y qué pasó.',
+  'List what was damaged, broken, or missing.': 'Lista lo que se dañó, se rompió o faltaba.',
+  'Answer whether the incident report was filed.': 'Responde si se llenó el reporte de incidente.',
+  'Answer whether there was a temp staff problem.': 'Responde si hubo problema con el personal temporal.',
+  'Name the temp and say what happened.': 'Di el nombre de la persona temporal y qué pasó.',
+  'Enter the tip amount.': 'Escribe la cantidad de la propina.',
+  'Answer whether the tip was shared per policy.': 'Responde si la propina se repartió según la política.',
+  'Explain what a manager should know about this venue/client.': 'Explica qué debe saber un gerente sobre este lugar/cliente.',
+  'Say who, what they did, and which Core Value.': 'Di quién, qué hizo y cuál Valor Fundamental.',
+  'Bar section: answer the bar setup question.': 'Sección del bar: responde la pregunta del montaje.',
+  'Describe how the bar setup was different.': 'Describe qué fue diferente en el montaje del bar.',
+  'Bar section: answer the supplies question.': 'Sección del bar: responde la pregunta de suministros.',
+  'Bar section: answer the guest/alcohol issue question.': 'Sección del bar: responde la pregunta de problemas con invitados/alcohol.',
+  'Describe the guest or alcohol issue.': 'Describe el problema con el invitado o el alcohol.',
+  'Bar section: answer the alcohol return question.': 'Sección del bar: responde la pregunta de devolución del alcohol.',
+  'Say where the alcohol was left.': 'Di dónde se dejó el alcohol.',
+  'Bar section: answer the damaged/missing question.': 'Sección del bar: responde la pregunta de daños/faltantes.',
+  'List what was damaged or missing from the bar.': 'Lista lo que se dañó o faltó del bar.',
+  'Bar section: answer the venue/client notes question.': 'Sección del bar: responde la pregunta de notas del lugar/cliente.',
+  'Explain what a manager should know.': 'Explica qué debe saber un gerente.',
+  'Bar section: answer the follow-up question.': 'Sección del bar: responde la pregunta de seguimiento.',
+  'Explain what needs follow-up.': 'Explica qué necesita seguimiento.',
+  'name the menu item.': 'escribe el nombre del plato.', 'pick at least one problem.': 'elige al menos un problema.',
+  'give the temperature reading in °F.': 'da la lectura de temperatura en °F.',
+  'choose how bad it was.': 'elige qué tan grave fue.', 'say what happened.': 'di qué pasó.',
+  'a photo is required.': 'la foto es obligatoria.',
+  'Could not read that image.': 'No se pudo leer esa imagen.'
+};
+var EN = {};
+Object.keys(ES).forEach(function (k) { EN[ES[k]] = k; });
+
+var LANG = 'en';
+function es() { return LANG === 'es'; }
+function t(s) { return es() ? (ES[s] || s) : s; }
+function L(en, sp) { return es() ? sp : en; }
+
+/* Swap every visible string and placeholder under `root` into the current language. */
+function translateTree(root) {
+  var map = es() ? ES : EN;
+  var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n;
+  while ((n = w.nextNode())) {
+    var p = n.parentNode && n.parentNode.nodeName;
+    if (p === 'SCRIPT' || p === 'STYLE') continue;
+    var raw = n.nodeValue, key = raw.replace(/\s+/g, ' ').trim();
+    if (key && map[key]) n.nodeValue = raw.replace(/\S[\s\S]*\S|\S/, map[key]);
+  }
+  [].slice.call(root.querySelectorAll('[placeholder]')).forEach(function (el) {
+    var ph = el.getAttribute('placeholder');
+    if (map[ph]) el.setAttribute('placeholder', map[ph]);
+  });
+}
+function applyLang() {
+  document.documentElement.lang = LANG;
+  translateTree(document.body);
+  document.getElementById('langBtn').textContent = es() ? 'English' : 'Español';
+  document.getElementById('langBtn').lang = es() ? 'en' : 'es';
+  document.title = t('Purple Onion — Event Feedback');
+  photoRule();
+  var btn = document.getElementById('send');
+  if (!btn.disabled) btn.textContent = t('Send report');
+  [].slice.call(document.querySelectorAll('.count')).forEach(function (p) { p.textContent = ''; });
+}
+function toggleLang() {
+  LANG = es() ? 'en' : 'es';
+  try { localStorage.setItem('po_feedback_lang', LANG); } catch (e) {}
+  applyLang();
+}
+/* Validation messages come in three shapes: whole sentences, "Item N: ...", and the captain/required patterns. */
+function trMsg(s) {
+  if (!es()) return s;
+  if (ES[s]) return ES[s];
+  var m;
+  if ((m = s.match(/^Item (\d+): (.+)$/))) return 'Plato ' + m[1] + ': ' + t(m[2]);
+  if ((m = s.match(/^Captain section: please answer the (.+) question\.$/))) return 'Sección del capitán: responde la pregunta de ' + t(m[1]) + '.';
+  if ((m = s.match(/^(.+) is required\.$/))) return 'Falta: ' + t(m[1]) + '.';
+  return s;
+}
+
 /* ---------------- role branching ---------------- */
 function setRole() {
   var r = document.getElementById('role').value;
@@ -646,8 +890,8 @@ function photoRule() {
   var req = photoRequired();
   [].slice.call(document.querySelectorAll('#items .picLabel')).forEach(function (l) { l.classList.toggle('req', req); });
   [].slice.call(document.querySelectorAll('#items .picHint')).forEach(function (p) {
-    p.textContent = req ? 'Required. Take it on your phone — it uploads straight from here.'
-                        : 'Optional for sales. If you have one, it uploads straight from here.';
+    p.textContent = t(req ? 'Required. Take it on your phone — it uploads straight from here.'
+                          : 'Optional for sales. If you have one, it uploads straight from here.');
   });
 }
 function show(id, on) { document.getElementById(id).classList.toggle('on', !!on); }
@@ -701,7 +945,7 @@ function cnt(el) {
   var p = scope.querySelector('.count');
   if (!p || !el.maxLength || el.maxLength < 0) return;
   var left = el.maxLength - el.value.length;
-  p.textContent = left < 40 ? left + ' characters left' : '';
+  p.textContent = left < 40 ? left + L(' characters left', ' caracteres restantes') : '';
 }
 
 /* ---------------- items ---------------- */
@@ -710,8 +954,9 @@ function renumber() {
     .forEach(function (el, i) { el.textContent = i + 1; });
 }
 function addItem() {
-  document.getElementById('items')
-    .appendChild(document.getElementById('tpl').content.cloneNode(true));
+  var list = document.getElementById('items');
+  list.appendChild(document.getElementById('tpl').content.cloneNode(true));
+  translateTree(list.lastElementChild);
   renumber();
   photoRule();
 }
@@ -758,7 +1003,7 @@ function send(payload, done, fail) {
 }
 function msg(kind, text) {
   var m = document.getElementById('msg');
-  m.className = kind; m.textContent = text;
+  m.className = kind; m.textContent = trMsg(text);
   m.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function radio(n) {
@@ -918,7 +1163,7 @@ function submit() {
     if (photoRequired() && !b.querySelector('.pic').files[0]) return msg('err', 'Item ' + n + ': a photo is required.');
   }
 
-  btn.disabled = true; btn.textContent = 'Sending…';
+  btn.disabled = true; btn.textContent = t('Sending…');
   msg('ok', 'Uploading…');
 
   Promise.all(blocks.map(function (b) {
@@ -940,23 +1185,30 @@ function submit() {
       equipment: radio('equipment'), equipmentDetail: val('equipmentDetail'),
       truckOnTime: radio('truckOnTime'), truckLateDetail: val('truckLateDetail'),
       service: radio('service'), wentWell: val('wentWell'), otherNotes: val('otherNotes'),
-      captain: captain, bar: bar, sales: sales, items: items
+      captain: captain, bar: bar, sales: sales, items: items, lang: LANG
     };
     send(payload, function (res) {
-      btn.disabled = false; btn.textContent = 'Send report';
-      if (!res || !res.ok) return msg('err', 'Not saved: ' + ((res && res.error) || 'unknown error') + ' — screenshot this and email it to kitchen@purpleonioncatering.com.');
+      btn.disabled = false; btn.textContent = t('Send report');
+      if (!res || !res.ok) return msg('err', L('Not saved: ', 'No se guardó: ') + ((res && res.error) || 'unknown error') +
+        L(' — screenshot this and email it to kitchen@purpleonioncatering.com.', ' — toma una captura y mándala a kitchen@purpleonioncatering.com.'));
       document.getElementById('f').style.display = 'none';
       document.getElementById('guide').style.display = 'none';
-      msg('ok', 'Got it — thank you. ' + (res.items ? res.items + ' item(s) flagged.' : 'No items flagged.'));
+      msg('ok', L('Got it — thank you. ', 'Recibido — ¡gracias! ') + (res.items
+        ? res.items + L(' item(s) flagged.', ' plato(s) reportado(s).')
+        : L('No items flagged.', 'Ningún plato reportado.')));
     }, function (e) {
-      btn.disabled = false; btn.textContent = 'Send report';
-      msg('err', 'Could not send: ' + e.message + ' — check your signal and try again. Nothing was lost.');
+      btn.disabled = false; btn.textContent = t('Send report');
+      msg('err', L('Could not send: ', 'No se pudo enviar: ') + e.message +
+        L(' — check your signal and try again. Nothing was lost.', ' — revisa tu señal e inténtalo otra vez. No se perdió nada.'));
     });
   }).catch(function (e) {
-    btn.disabled = false; btn.textContent = 'Send report';
+    btn.disabled = false; btn.textContent = t('Send report');
     msg('err', e.message);
   });
 }
+
+/* start in the language this phone used last time */
+try { if (localStorage.getItem('po_feedback_lang') === 'es') { LANG = 'es'; applyLang(); } } catch (e) {}
 
 </script>
 </body>
