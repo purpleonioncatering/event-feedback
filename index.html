@@ -142,6 +142,7 @@
       <legend>How it went</legend>
 
       <div id="opsQs"><!-- not asked of Sales: they don't see load-in -->
+      <div id="chefQs"><!-- equipment + truck: Chef only (captains/bartenders can't answer them) -->
       <label class="req">Was all the equipment on the truck and working?</label>
       <div class="choices">
         <label><input type="radio" name="equipment" value="Yes" onchange="eqToggle()">Yes</label>
@@ -166,6 +167,7 @@
                placeholder="30 minutes late, wrong address given to driver">
         <p class="count"></p>
       </div>
+      </div><!-- /chefQs -->
 
       <label class="req">How did service go overall? (1 rough &mdash; 5 excellent)</label>
       <div class="choices">
@@ -882,6 +884,7 @@ function setRole() {
   show('s-sales',   r === 'Sales');
   show('s-items',   r === 'Chef' || r === 'Captain' || r === 'Sales');
   document.getElementById('opsQs').style.display = r === 'Sales' ? 'none' : '';
+  document.getElementById('chefQs').style.display = r === 'Chef' ? '' : 'none';
   photoRule();
 }
 /* Item photos: required from the people handling the food, optional for sales. */
@@ -1026,7 +1029,7 @@ function submit() {
 
   var role = val('role'), captain = null, bar = null, sales = null;
 
-  if (role !== 'Sales') {   // sales don't see load-in, so these three are not asked of them
+  if (role === 'Chef') {    // equipment + truck are chef-only (captains/bartenders can't answer them)
     if (!radio('equipment')) return msg('err', 'Please answer the equipment question.');
     if (radio('equipment') !== 'Yes' && !val('equipmentDetail'))
       return msg('err', 'Say which piece of equipment, and what happened.');
@@ -1034,7 +1037,8 @@ function submit() {
     if (!radio('truckOnTime')) return msg('err', 'Please answer the truck arrival question.');
     if (radio('truckOnTime') === 'No' && !val('truckLateDetail'))
       return msg('err', 'Say how late the truck was and what happened.');
-
+  }
+  if (role !== 'Sales') {   // sales don't see load-in, so the service rating is not asked of them
     if (!radio('service')) return msg('err', 'Please rate how service went.');
   }
 
