@@ -87,6 +87,15 @@
   .ex b { font-weight:600; }
   .roleonly { display:none; }
   .roleonly.on { display:block; }
+
+  /* ---- sales forms (v7) ---- */
+  textarea { resize:vertical; min-height:4.5rem; }
+  .q .hint { margin:0 0 .4rem; }
+  .choices.scale { display:flex; flex-wrap:wrap; gap:0 1.2rem; }
+  .trio { display:grid; grid-template-columns:minmax(0,1fr); gap:.5rem 1rem; }
+  @media (min-width:600px) { .trio { grid-template-columns:2fr 2fr 1fr; } }
+  .trio .sub { display:block; font-size:.82rem; color:var(--muted); margin:0 0 .2rem; }
+  .thumbs .thumb { display:inline-block; margin-right:.4rem; }
 </style>
 </head>
 <body>
@@ -113,6 +122,7 @@
 
     <fieldset id="s-event">
       <legend>The event</legend>
+      <div id="evtQs"><!-- hidden for Sales: their forms ask for their own date + TPP # -->
       <label class="req">Event number</label>
       <input type="text" id="eventNumber" inputmode="numeric" pattern="[0-9]{5}"
              placeholder="62977" required>
@@ -120,6 +130,7 @@
 
       <label class="req">Event date</label>
       <input type="date" id="eventDate" required>
+      </div>
 
       <label class="req">Your name</label>
       <input type="text" id="name" required>
@@ -493,58 +504,232 @@
       </div>
     </fieldset>
 
-    <!-- ============ SALES ONLY ============ -->
+    <!-- ============ SALES ONLY (v7: pick Tasting or Event) ============ -->
     <fieldset class="roleonly" id="s-sales">
-      <legend>Sales &mdash; the client</legend>
-
-      <label class="req">Were you on site?</label>
+      <legend>Sales &mdash; which form?</legend>
+      <label class="req">Which feedback are you giving?</label>
       <div class="choices">
-        <label><input type="radio" name="onSite" value="Whole event">Whole event</label>
-        <label><input type="radio" name="onSite" value="Part of it">Part of it</label>
-        <label><input type="radio" name="onSite" value="Not on site (heard from the client)">Not on site &mdash; heard from the client</label>
+        <label><input type="radio" name="salesForm" value="Tasting" onchange="salesFormToggle()">Tasting feedback</label>
+        <label><input type="radio" name="salesForm" value="Event" onchange="salesFormToggle()">Event feedback</label>
       </div>
+    </fieldset>
 
-      <label class="req">How happy was the client? (1 unhappy &mdash; 5 thrilled)</label>
-      <div class="choices">
-        <label><input type="radio" name="clientHappy" value="1">1</label>
-        <label><input type="radio" name="clientHappy" value="2">2</label>
-        <label><input type="radio" name="clientHappy" value="3">3</label>
-        <label><input type="radio" name="clientHappy" value="4">4</label>
-        <label><input type="radio" name="clientHappy" value="5">5</label>
-      </div>
+    <!-- ---- Sales: tasting feedback ---- -->
+    <fieldset class="roleonly" id="s-salesTasting">
+      <legend>Sales &mdash; tasting feedback</legend>
 
-      <label>What did the client say?</label>
-      <input type="text" id="clientSaid" maxlength="300" oninput="cnt(this)"
-             placeholder="Their words, good or bad">
-      <p class="count"></p>
+      <label class="req">What is the tasting date?</label>
+      <input type="date" id="stDate">
 
-      <label class="req">Did the event match what was sold?</label>
-      <div class="choices">
-        <label><input type="radio" name="matchedSold" value="Yes" onchange="soldToggle()">Yes</label>
-        <label><input type="radio" name="matchedSold" value="No" onchange="soldToggle()">No</label>
-      </div>
-      <div class="reveal" id="soldWrap">
-        <label class="req">What was different?</label>
-        <input type="text" id="soldDiff" maxlength="300" oninput="cnt(this)"
-               placeholder="Menu, timing, setup, counts">
+      <label class="req">What is the tasting event TPP #?</label>
+      <input type="text" id="stTpp" inputmode="numeric" pattern="[0-9]{5}" placeholder="62977">
+
+      <label>What is the full-service event TPP #?</label>
+      <input type="text" id="stFullTpp" inputmode="numeric" pattern="[0-9]{5}" placeholder="62977">
+
+      <div class="q">
+        <label>What is the event service style?</label>
+        <input type="text" id="stStyle" maxlength="200" oninput="cnt(this)">
         <p class="count"></p>
       </div>
 
-      <label class="req">Does the client need a follow-up?</label>
-      <div class="choices">
-        <label><input type="radio" name="followUp" value="No" onchange="fuToggle()">No</label>
-        <label><input type="radio" name="followUp" value="Yes" onchange="fuToggle()">Yes</label>
-      </div>
-      <div class="reveal" id="fuWrap">
-        <label class="req">What needs following up?</label>
-        <input type="text" id="followDetail" maxlength="300" oninput="cnt(this)">
+      <label>Who was the tasting chef?</label>
+      <input type="text" id="stChef" maxlength="120">
+
+      <div class="q">
+        <label>What went well during the tasting?</label>
+        <textarea id="stWentWell" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
-        <label class="req">How urgent?</label>
-        <div class="choices">
-          <label><input type="radio" name="followUrgency" value="Today">Today</label>
-          <label><input type="radio" name="followUrgency" value="This week">This week</label>
-          <label><input type="radio" name="followUrgency" value="Just FYI">Just FYI</label>
-        </div>
+      </div>
+
+      <div class="q">
+        <label>What feedback did the client have about the appetizers?</label>
+        <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
+        <textarea id="stApps" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>What feedback did the client have about the salad?</label>
+        <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
+        <textarea id="stSalad" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>What feedback did the client have about the entrée?</label>
+        <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
+        <textarea id="stEntree" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>What feedback did the client have about dessert?</label>
+        <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
+        <textarea id="stDessert" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Is there any other food feedback to note?</label>
+        <textarea id="stOtherFood" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>How was the overall client experience?</label>
+        <textarea id="stExperience" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>How likely is the client to book?</label>
+        <input type="text" id="stBook" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <label>What was the client's favorite item tasted?</label>
+      <input type="text" id="stFavorite" maxlength="200">
+
+      <div class="q">
+        <label>What concerns or questions did the client bring up?</label>
+        <textarea id="stConcerns" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <label>On a scale of 1–10, how would you rate the client's overall tasting experience? (1 = Poor, 10 = Excellent)</label>
+      <div class="choices scale">
+        <label><input type="radio" name="stRating" value="1">1</label>
+        <label><input type="radio" name="stRating" value="2">2</label>
+        <label><input type="radio" name="stRating" value="3">3</label>
+        <label><input type="radio" name="stRating" value="4">4</label>
+        <label><input type="radio" name="stRating" value="5">5</label>
+        <label><input type="radio" name="stRating" value="6">6</label>
+        <label><input type="radio" name="stRating" value="7">7</label>
+        <label><input type="radio" name="stRating" value="8">8</label>
+        <label><input type="radio" name="stRating" value="9">9</label>
+        <label><input type="radio" name="stRating" value="10">10</label>
+      </div>
+
+      <div class="q">
+        <label>Please share any additional feedback.</label>
+        <textarea id="stAdditional" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Are there any additional comments or suggestions for the culinary team?</label>
+        <textarea id="stCulinary" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Please upload any supporting photos.</label>
+        <input type="file" id="stPhotos" accept="image/*" multiple onchange="previewMany(this)">
+        <div class="thumbs"></div>
+      </div>
+    </fieldset>
+
+    <!-- ---- Sales: event feedback ---- -->
+    <fieldset class="roleonly" id="s-salesEvent">
+      <legend>Sales &mdash; event feedback</legend>
+
+      <label class="req">What is the date of the event?</label>
+      <input type="date" id="seDate">
+
+      <label>What is the event name, venue, and TPP #?</label>
+      <div class="trio">
+        <div><span class="sub">Event name</span><input type="text" id="seName" maxlength="150"></div>
+        <div><span class="sub">Venue</span><input type="text" id="seVenue" maxlength="150"></div>
+        <div><span class="sub req">TPP #</span><input type="text" id="seTpp" inputmode="numeric" pattern="[0-9]{5}" placeholder="62977"></div>
+      </div>
+
+      <label>Were you onsite for this event?</label>
+      <div class="choices">
+        <label><input type="radio" name="seOnsite" value="Yes">Yes</label>
+        <label><input type="radio" name="seOnsite" value="No">No</label>
+      </div>
+
+      <div class="q">
+        <label>What went well?</label>
+        <textarea id="seWentWell" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>What didn't go as expected?</label>
+        <textarea id="seNotExpected" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Why does this matter?</label>
+        <textarea id="seWhy" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>What improvement would you suggest?</label>
+        <textarea id="seImprove" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Was this a one-time issue or a recurring issue?</label>
+        <input type="text" id="seRecur" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>How satisfied was the client with the event?</label>
+        <input type="text" id="seSat" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>What is the urgency level of any issues or follow-up needed?</label>
+        <input type="text" id="seUrgency" maxlength="200" oninput="cnt(this)">
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>What were your key takeaways from this event?</label>
+        <textarea id="seTakeaways" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <label>What is your name? (Optional)</label>
+      <input type="text" id="seYourName" maxlength="120">
+
+      <div class="q">
+        <label>Do you have any Sales Team or logistics feedback?</label>
+        <textarea id="seSalesFb" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Do you have any culinary feedback?</label>
+        <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
+        <textarea id="seCulinaryFb" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Do you have any beverage feedback?</label>
+        <textarea id="seBeverageFb" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Do you have any staffing feedback?</label>
+        <textarea id="seStaffingFb" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Please upload any supporting photos.</label>
+        <input type="file" id="sePhotos" accept="image/*" multiple onchange="previewMany(this)">
+        <div class="thumbs"></div>
       </div>
     </fieldset>
 
@@ -723,16 +908,49 @@ var ES = {
   'Where was it left?': '¿Dónde se dejó?',
   'Was anything from the bar missing, broken, or damaged?': '¿Faltaba, se rompió o se dañó algo del bar?',
   'Is there anything else from the bar that a manager needs to follow up on?': '¿Hay algo más del bar que un gerente deba revisar?',
-  'Sales — the client': 'Ventas — el cliente', 'Were you on site?': '¿Estuviste en el lugar?',
-  'Whole event': 'Todo el evento', 'Part of it': 'Parte del evento',
-  'Not on site — heard from the client': 'No estuve — me enteré por el cliente',
-  'How happy was the client? (1 unhappy — 5 thrilled)': '¿Qué tan contento quedó el cliente? (1 descontento — 5 encantado)',
-  'What did the client say?': '¿Qué dijo el cliente?', 'Their words, good or bad': 'Sus palabras, buenas o malas',
-  'Did the event match what was sold?': '¿El evento coincidió con lo que se vendió?',
-  'Menu, timing, setup, counts': 'Menú, horarios, montaje, cantidades',
-  'Does the client need a follow-up?': '¿El cliente necesita seguimiento?',
-  'What needs following up?': '¿Qué necesita seguimiento?', 'How urgent?': '¿Qué tan urgente?',
-  'Today': 'Hoy', 'This week': 'Esta semana', 'Just FYI': 'Solo para información',
+  /* sales (v7) — Nadia's wording, two forms */
+  'Sales — which form?': 'Ventas — ¿qué formulario?',
+  'Which feedback are you giving?': '¿Qué tipo de reporte vas a dar?',
+  'Tasting feedback': 'Reporte de degustación', 'Event feedback': 'Reporte del evento',
+  'Sales — tasting feedback': 'Ventas — reporte de degustación',
+  'Sales — event feedback': 'Ventas — reporte del evento',
+  'What is the tasting date?': '¿Cuál es la fecha de la degustación?',
+  'What is the tasting event TPP #?': '¿Cuál es el # de TPP del evento de degustación?',
+  'What is the full-service event TPP #?': '¿Cuál es el # de TPP del evento de servicio completo?',
+  'What is the event service style?': '¿Cuál es el estilo de servicio del evento?',
+  'Who was the tasting chef?': '¿Quién fue el chef de la degustación?',
+  'What went well during the tasting?': '¿Qué salió bien durante la degustación?',
+  'What feedback did the client have about the appetizers?': '¿Qué comentarios tuvo el cliente sobre los aperitivos?',
+  'What feedback did the client have about the salad?': '¿Qué comentarios tuvo el cliente sobre la ensalada?',
+  'What feedback did the client have about the entrée?': '¿Qué comentarios tuvo el cliente sobre el plato fuerte?',
+  'What feedback did the client have about dessert?': '¿Qué comentarios tuvo el cliente sobre el postre?',
+  'Please consider flavor, texture, appearance/color, and temperature.': 'Toma en cuenta el sabor, la textura, la apariencia/el color y la temperatura.',
+  'Is there any other food feedback to note?': '¿Hay algún otro comentario sobre la comida?',
+  'How was the overall client experience?': '¿Cómo fue la experiencia general del cliente?',
+  'How likely is the client to book?': '¿Qué tan probable es que el cliente reserve?',
+  "What was the client's favorite item tasted?": '¿Cuál fue el plato favorito del cliente en la degustación?',
+  'What concerns or questions did the client bring up?': '¿Qué preocupaciones o preguntas mencionó el cliente?',
+  "On a scale of 1–10, how would you rate the client's overall tasting experience? (1 = Poor, 10 = Excellent)": 'En una escala del 1 al 10, ¿cómo calificarías la experiencia general del cliente en la degustación? (1 = Mala, 10 = Excelente)',
+  'Please share any additional feedback.': 'Comparte cualquier comentario adicional.',
+  'Are there any additional comments or suggestions for the culinary team?': '¿Tienes algún otro comentario o sugerencia para el equipo culinario?',
+  'Please upload any supporting photos.': 'Sube cualquier foto de apoyo.',
+  'What is the date of the event?': '¿Cuál es la fecha del evento?',
+  'What is the event name, venue, and TPP #?': '¿Cuál es el nombre del evento, el lugar y el # de TPP?',
+  'Event name': 'Nombre del evento', 'Venue': 'Lugar', 'TPP #': '# de TPP',
+  'Were you onsite for this event?': '¿Estuviste en el lugar durante este evento?',
+  'What went well?': '¿Qué salió bien?',
+  "What didn't go as expected?": '¿Qué no salió como se esperaba?',
+  'Why does this matter?': '¿Por qué es importante?',
+  'What improvement would you suggest?': '¿Qué mejora sugerirías?',
+  'Was this a one-time issue or a recurring issue?': '¿Fue un problema de una sola vez o es recurrente?',
+  'How satisfied was the client with the event?': '¿Qué tan satisfecho quedó el cliente con el evento?',
+  'What is the urgency level of any issues or follow-up needed?': '¿Qué nivel de urgencia tienen los problemas o el seguimiento necesario?',
+  'What were your key takeaways from this event?': '¿Cuáles fueron tus conclusiones principales de este evento?',
+  'What is your name? (Optional)': '¿Cuál es tu nombre? (Opcional)',
+  'Do you have any Sales Team or logistics feedback?': '¿Tienes comentarios para el equipo de ventas o de logística?',
+  'Do you have any culinary feedback?': '¿Tienes comentarios culinarios?',
+  'Do you have any beverage feedback?': '¿Tienes comentarios sobre las bebidas?',
+  'Do you have any staffing feedback?': '¿Tienes comentarios sobre el personal?',
   'Items that had a problem': 'Platos que tuvieron un problema',
   'Only if something went wrong. One block per item — each gets its own problem and its own photo. Nothing wrong? Leave this empty and send.': 'Solo si algo salió mal. Un bloque por plato — cada uno con su propio problema y su propia foto. ¿Nada salió mal? Déjalo vacío y envía.',
   '+ Add an item that had a problem': '+ Agregar un plato que tuvo un problema',
@@ -776,13 +994,12 @@ var ES = {
   'Please answer the truck arrival question.': 'Responde la pregunta de la llegada del camión.',
   'Say how late the truck was and what happened.': 'Di qué tan tarde llegó el camión y qué pasó.',
   'Please rate how service went.': 'Califica cómo salió el servicio.',
-  'Sales section: say whether you were on site.': 'Sección de ventas: di si estuviste en el lugar.',
-  'Sales section: rate how happy the client was.': 'Sección de ventas: califica qué tan contento quedó el cliente.',
-  'Sales section: say whether the event matched what was sold.': 'Sección de ventas: di si el evento coincidió con lo vendido.',
-  'Say what was different from what was sold.': 'Di qué fue diferente de lo que se vendió.',
-  'Sales section: say whether the client needs a follow-up.': 'Sección de ventas: di si el cliente necesita seguimiento.',
-  'Say what needs following up.': 'Di qué necesita seguimiento.',
-  'Say how urgent the follow-up is.': 'Di qué tan urgente es el seguimiento.',
+  'Sales: choose Tasting feedback or Event feedback.': 'Ventas: elige Reporte de degustación o Reporte del evento.',
+  'Please enter the tasting date.': 'Escribe la fecha de la degustación.',
+  'Tasting event TPP # should be five digits.': 'El # de TPP de la degustación debe tener cinco dígitos.',
+  'Full-service event TPP # should be five digits.': 'El # de TPP del evento de servicio completo debe tener cinco dígitos.',
+  'Please enter the event date.': 'Escribe la fecha del evento.',
+  'Event TPP # should be five digits.': 'El # de TPP del evento debe tener cinco dígitos.',
   'client check-in': 'hablar con el cliente', 'guest concerns': 'quejas de invitados',
   'pre-shift meeting': 'reunión antes del turno', 'setup and load-in': 'montaje y descarga',
   'breakdown and load-out': 'desmontaje y carga', 'venue check-out': 'salida del lugar',
@@ -885,7 +1102,17 @@ function setRole() {
   show('s-items',   r === 'Chef' || r === 'Captain' || r === 'Sales');
   document.getElementById('opsQs').style.display = r === 'Sales' ? 'none' : '';
   document.getElementById('chefQs').style.display = r === 'Chef' ? '' : 'none';
+  // v7: the sales forms carry their own date + TPP # and their own "went well", so the shared ones hide
+  document.getElementById('evtQs').style.display = r === 'Sales' ? 'none' : '';
+  document.getElementById('s-how').style.display = r === 'Sales' ? 'none' : '';
+  salesFormToggle();
   photoRule();
+}
+/* v7: Sales picks Tasting or Event; only the chosen form shows. */
+function salesForm() { return val('role') === 'Sales' ? radio('salesForm') : ''; }
+function salesFormToggle() {
+  show('s-salesTasting', salesForm() === 'Tasting');
+  show('s-salesEvent',   salesForm() === 'Event');
 }
 /* Item photos: required from the people handling the food, optional for sales. */
 function photoRequired() { return val('role') !== 'Sales'; }
@@ -932,10 +1159,6 @@ function brToggle() { rev('brWrap', radio('barAlcoholReturned') === 'No'); }
 function bdToggle() { rev('bdWrap', radio('barDamaged') === 'Yes'); }
 function bvToggle() { rev('bvWrap', radio('barVenueNotes') === 'Yes'); }
 function bfToggle() { rev('bfWrap', radio('barFollowUp') === 'Yes'); }
-
-/* sales */
-function soldToggle() { rev('soldWrap', radio('matchedSold') === 'No'); }
-function fuToggle()   { rev('fuWrap',   radio('followUp') === 'Yes'); }
 
 /* items — temperature checkbox */
 function tempToggle(cb) {
@@ -989,6 +1212,16 @@ function preview(input) {
   img.src = URL.createObjectURL(input.files[0]);
   img.style.display = 'block';
 }
+/* sales "supporting photos": several files, one thumbnail each */
+function previewMany(input) {
+  var box = input.closest('.q').querySelector('.thumbs');
+  box.innerHTML = '';
+  [].slice.call(input.files).forEach(function (file) {
+    var img = document.createElement('img');
+    img.className = 'thumb'; img.src = URL.createObjectURL(file);
+    box.appendChild(img);
+  });
+}
 
 /* ---------------- plumbing ---------------- */
 // Off Google's servers the report goes out as a cookie-less POST, which a browser signed into
@@ -1018,16 +1251,17 @@ function val(id) { return (document.getElementById(id).value || '').trim(); }
 function submit() {
   var btn = document.getElementById('send');
 
-  /* ---- shared validation ---- */
+  /* ---- shared validation (Sales skips Event # / date: their form asks its own) ---- */
+  var role = val('role'), captain = null, bar = null, salesTasting = null, salesEvent = null;
+  var evNum = val('eventNumber'), evDate = val('eventDate'), photoFiles = [];
   var need = [['eventNumber', 'Event number'], ['eventDate', 'Event date'],
               ['name', 'Your name'], ['role', 'Your role']];
   for (var i = 0; i < need.length; i++) {
+    if (role === 'Sales' && (need[i][0] === 'eventNumber' || need[i][0] === 'eventDate')) continue;
     if (!val(need[i][0])) return msg('err', need[i][1] + ' is required.');
   }
-  if (!/^[0-9]{5}$/.test(val('eventNumber')))
+  if (role !== 'Sales' && !/^[0-9]{5}$/.test(evNum))
     return msg('err', 'Event number should be five digits.');
-
-  var role = val('role'), captain = null, bar = null, sales = null;
 
   if (role === 'Chef') {    // equipment + truck are chef-only (captains/bartenders can't answer them)
     if (!radio('equipment')) return msg('err', 'Please answer the equipment question.');
@@ -1042,22 +1276,40 @@ function submit() {
     if (!radio('service')) return msg('err', 'Please rate how service went.');
   }
 
-  /* ---- sales validation ---- */
+  /* ---- sales validation (v7): only dates and TPP #s are required ---- */
   if (role === 'Sales') {
-    if (!radio('onSite')) return msg('err', 'Sales section: say whether you were on site.');
-    if (!radio('clientHappy')) return msg('err', 'Sales section: rate how happy the client was.');
-    if (!radio('matchedSold')) return msg('err', 'Sales section: say whether the event matched what was sold.');
-    if (radio('matchedSold') === 'No' && !val('soldDiff')) return msg('err', 'Say what was different from what was sold.');
-    if (!radio('followUp')) return msg('err', 'Sales section: say whether the client needs a follow-up.');
-    if (radio('followUp') === 'Yes') {
-      if (!val('followDetail')) return msg('err', 'Say what needs following up.');
-      if (!radio('followUrgency')) return msg('err', 'Say how urgent the follow-up is.');
+    var form = salesForm();
+    if (!form) return msg('err', 'Sales: choose Tasting feedback or Event feedback.');
+    if (form === 'Tasting') {
+      if (!val('stDate')) return msg('err', 'Please enter the tasting date.');
+      if (!/^[0-9]{5}$/.test(val('stTpp'))) return msg('err', 'Tasting event TPP # should be five digits.');
+      // optional: a client who has not booked yet has no full-service event; if given it must still be 5 digits
+      if (val('stFullTpp') && !/^[0-9]{5}$/.test(val('stFullTpp'))) return msg('err', 'Full-service event TPP # should be five digits.');
+      salesTasting = {
+        tastingDate: val('stDate'), tastingTpp: val('stTpp'), fullServiceTpp: val('stFullTpp'),
+        serviceStyle: val('stStyle'), tastingChef: val('stChef'),
+        wentWell: val('stWentWell'), appetizers: val('stApps'), salad: val('stSalad'),
+        entree: val('stEntree'), dessert: val('stDessert'), otherFood: val('stOtherFood'),
+        clientExperience: val('stExperience'), likelyToBook: val('stBook'), favoriteItem: val('stFavorite'),
+        concerns: val('stConcerns'), rating: radio('stRating'), additional: val('stAdditional'),
+        culinaryComments: val('stCulinary')
+      };
+      evNum = salesTasting.tastingTpp; evDate = salesTasting.tastingDate;
+      photoFiles = [].slice.call(document.getElementById('stPhotos').files);
+    } else {
+      if (!val('seDate')) return msg('err', 'Please enter the event date.');
+      if (!/^[0-9]{5}$/.test(val('seTpp'))) return msg('err', 'Event TPP # should be five digits.');
+      salesEvent = {
+        eventDate: val('seDate'), eventName: val('seName'), venue: val('seVenue'), tpp: val('seTpp'),
+        onsite: radio('seOnsite'), wentWell: val('seWentWell'), notExpected: val('seNotExpected'),
+        whyMatters: val('seWhy'), improvement: val('seImprove'), oneTime: val('seRecur'),
+        satisfaction: val('seSat'), urgency: val('seUrgency'), takeaways: val('seTakeaways'),
+        yourName: val('seYourName'), salesFeedback: val('seSalesFb'), culinaryFeedback: val('seCulinaryFb'),
+        beverageFeedback: val('seBeverageFb'), staffingFeedback: val('seStaffingFb')
+      };
+      evNum = salesEvent.tpp; evDate = salesEvent.eventDate;
+      photoFiles = [].slice.call(document.getElementById('sePhotos').files);
     }
-    sales = {
-      onSite: radio('onSite'), clientHappy: radio('clientHappy'), clientSaid: val('clientSaid'),
-      matchedSold: radio('matchedSold'), soldDiff: val('soldDiff'),
-      followUp: radio('followUp'), followDetail: val('followDetail'), followUrgency: radio('followUrgency')
-    };
   }
 
   /* ---- captain validation ---- */
@@ -1170,7 +1422,10 @@ function submit() {
   btn.disabled = true; btn.textContent = t('Sending…');
   msg('ok', 'Uploading…');
 
-  Promise.all(blocks.map(function (b) {
+  // "How it went" is hidden for Sales — never send what a hidden box may still hold
+  var wentWell = role === 'Sales' ? '' : val('wentWell'), otherNotes = role === 'Sales' ? '' : val('otherNotes');
+
+  Promise.all([Promise.all(blocks.map(function (b) {
     var file = b.querySelector('.pic').files[0];
     return (file ? shrink(file) : Promise.resolve(null)).then(function (photo) {
       return {
@@ -1182,14 +1437,16 @@ function submit() {
         photo:    photo
       };
     });
-  })).then(function (items) {
+  })), Promise.all(photoFiles.map(shrink))]).then(function (done) {
+    var items = done[0], salesPhotos = done[1];
     var payload = {
-      eventNumber: val('eventNumber'), eventDate: val('eventDate'), name: val('name'),
+      eventNumber: evNum, eventDate: evDate, name: val('name'),
       email: val('email'), role: role,
       equipment: radio('equipment'), equipmentDetail: val('equipmentDetail'),
       truckOnTime: radio('truckOnTime'), truckLateDetail: val('truckLateDetail'),
-      service: radio('service'), wentWell: val('wentWell'), otherNotes: val('otherNotes'),
-      captain: captain, bar: bar, sales: sales, items: items, lang: LANG
+      service: radio('service'), wentWell: wentWell, otherNotes: otherNotes,
+      captain: captain, bar: bar, salesTasting: salesTasting, salesEvent: salesEvent,
+      salesPhotos: salesPhotos, items: items, lang: LANG
     };
     send(payload, function (res) {
       btn.disabled = false; btn.textContent = t('Send report');
