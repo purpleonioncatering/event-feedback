@@ -60,6 +60,10 @@
   #msg.ok  { display:block; background:#E8F5E9; border:1px solid var(--good); color:#1B5E20; }
   #msg.err { display:block; background:#FFEBEE; border:1px solid var(--warn); color:#7f1414; }
   .thumb { max-width:110px; border-radius:4px; margin-top:.5rem; display:block; }
+  .blankWarn { margin:.5rem 0 0; padding:.6rem .7rem; border:1px solid var(--warn); border-radius:4px;
+               background:#FFEBEE; color:#7f1414; font-size:.85rem; }
+  .blankWarn button { padding:.4rem .8rem; margin:.45rem .4rem 0 0; font-size:.85rem; }
+  .blankWarn .retake { background:var(--plum); color:#fff; }
 
   /* ---- inventory grid (bar section) ---- */
   .inv-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem 1rem; margin:.7rem 0; }
@@ -1041,6 +1045,8 @@ var ES = {
   'give the temperature reading in °F.': 'da la lectura de temperatura en °F.',
   'choose how bad it was.': 'elige qué tan grave fue.', 'say what happened.': 'di qué pasó.',
   'a photo is required.': 'la foto es obligatoria.',
+  'that photo looks blank. Retake it.': 'esa foto se ve en blanco. Tómala de nuevo.',
+  'A supporting photo looks blank. Retake it.': 'Una de las fotos se ve en blanco. Tómala de nuevo.',
   'Could not read that image.': 'No se pudo leer esa imagen.'
 };
 var EN = {};
@@ -1208,6 +1214,7 @@ function shrink(file) {
 }
 function preview(input) {
   var img = input.closest('.inner').querySelector('.thumb');
+  blankCheck(input);
   if (!input.files[0]) { img.style.display = 'none'; return; }
   img.src = URL.createObjectURL(input.files[0]);
   img.style.display = 'block';
@@ -1216,10 +1223,77 @@ function preview(input) {
 function previewMany(input) {
   var box = input.closest('.q').querySelector('.thumbs');
   box.innerHTML = '';
+  blankCheck(input);
   [].slice.call(input.files).forEach(function (file) {
     var img = document.createElement('img');
     img.className = 'thumb'; img.src = URL.createObjectURL(file);
     box.appendChild(img);
+  });
+}
+
+// Blank-photo check (2026-10-19). A fingertip over the lens uploads a smooth red frame with no
+// detail (Vania, #65415). Score = mean edge strength of a 160x120 greyscale copy, the same 3x3
+// kernel as PIL's FIND_EDGES: that photo scored 3.7, real kitchen and food photos 19-48.
+// Below BLANK_EDGE the photo is refused every time (Retake, and Send says why): covering the lens is
+// a deliberate way round "photo required", so there is no keep button and no second-try pass.
+// The margin is wide (blank 5.9 vs real food 17.9+, real shots at 1/4 brightness 26+ after the
+// contrast stretch). An image it cannot measure (HEIC on desktop, a decode error) is not refused.
+var BLANK_EDGE = 8;
+function edgeScore(file) {
+  return new Promise(function (resolve) {
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      var score = null;
+      try {
+        var w = 160, h = 120, c = document.createElement('canvas'); c.width = w; c.height = h;
+        var g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+        var d = g.getImageData(0, 0, w, h).data, y = new Float32Array(w * h), sum = 0, n = 0, i, x;
+        for (i = 0; i < w * h; i++) y[i] = 0.299 * d[4 * i] + 0.587 * d[4 * i + 1] + 0.114 * d[4 * i + 2];
+        // Stretch contrast first (2nd-98th percentile to 0-255), so a dim venue shot scores on its
+        // detail, not its brightness; without this a real photo at 1/4 brightness fell under 8.
+        var srt = Array.prototype.slice.call(y).sort(function (a, b) { return a - b; });
+        var lo = srt[Math.floor(srt.length * 0.02)], hi = srt[Math.floor(srt.length * 0.98)];
+        if (hi - lo < 1) { URL.revokeObjectURL(url); resolve(0); return; }
+        for (i = 0; i < w * h; i++) y[i] = (y[i] - lo) * 255 / (hi - lo);
+        for (i = 1; i < h - 1; i++) for (x = 1; x < w - 1; x++) {
+          var k = i * w + x;
+          var v = 8 * y[k] - y[k - w - 1] - y[k - w] - y[k - w + 1] - y[k - 1] - y[k + 1]
+                  - y[k + w - 1] - y[k + w] - y[k + w + 1];
+          sum += v < 0 ? 0 : (v > 255 ? 255 : v); n++;
+        }
+        score = sum / n;
+      } catch (e) { score = null; }
+      URL.revokeObjectURL(url);
+      resolve(score);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+function blankCheck(input) {
+  var old = input.parentNode.querySelector('.blankWarn');
+  if (old) old.remove();
+  input._blank = false;
+  var files = [].slice.call(input.files || []), tok = input._blankTok = {};
+  if (!files.length) return;
+  Promise.all(files.map(edgeScore)).then(function (scores) {
+    if (input._blankTok !== tok) return;   // a newer pick replaced these files
+    var bad = scores.filter(function (s) { return s !== null && s < BLANK_EDGE; }).length;
+    if (!bad) return;
+    input._blank = true;
+    var box = document.createElement('div');
+    box.className = 'blankWarn';
+    var p = document.createElement('div');
+    p.textContent = files.length === 1
+      ? L('That photo looks blank, like a finger was over the lens. Retake it?',
+          'Esa foto se ve en blanco, como si un dedo tapara la cámara. ¿La tomas de nuevo?')
+      : L(bad + ' of these photos look blank, like a finger was over the lens. Retake them?',
+          bad + ' de estas fotos se ven en blanco, como si un dedo tapara la cámara. ¿Las tomas de nuevo?');
+    var retake = document.createElement('button');
+    retake.type = 'button'; retake.className = 'retake'; retake.textContent = L('Retake', 'Tomar de nuevo');
+    retake.onclick = function () { input.value = ''; input.onchange(); input.click(); };
+    box.appendChild(p); box.appendChild(retake);
+    input.insertAdjacentElement('afterend', box);
   });
 }
 
@@ -1419,7 +1493,12 @@ function sendReport() {
     if (!b.querySelector('.sev').value)         return msg('err', 'Item ' + n + ': choose how bad it was.');
     if (!b.querySelector('.what').value.trim()) return msg('err', 'Item ' + n + ': say what happened.');
     if (photoRequired() && !b.querySelector('.pic').files[0]) return msg('err', 'Item ' + n + ': a photo is required.');
+    if (b.querySelector('.pic')._blank) return msg('err', 'Item ' + n + ': that photo looks blank. Retake it.');
   }
+  var many = ['stPhotos', 'sePhotos'].map(function (id) { return document.getElementById(id); });
+  for (var q = 0; q < many.length; q++)
+    if (many[q] && many[q]._blank && vis(many[q].closest('fieldset').id))
+      return msg('err', 'A supporting photo looks blank. Retake it.');
 
   btn.disabled = true; btn.textContent = t('Sending…');
   msg('ok', 'Uploading…');
