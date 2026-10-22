@@ -57,7 +57,7 @@
            width:100%; padding:.9rem; margin-top:.6rem; }
   .send[disabled] { opacity:.55; cursor:progress; }
   #msg { padding:.9rem; border-radius:5px; margin-top:1rem; display:none; font-size:.92rem; }
-  #msg.ok  { display:block; background:#E8F5E9; border:1px solid var(--good); color:#1B5E20; }
+  #msg.ok  { display:block; background:#E8F5E9; border:1px solid var(--good); color:#1B5E20; font-size:1.05rem; font-weight:600; }
   #msg.err { display:block; background:#FFEBEE; border:1px solid var(--warn); color:#7f1414; }
   .thumb { max-width:110px; border-radius:4px; margin-top:.5rem; display:block; }
   .blankWarn { margin:.5rem 0 0; padding:.6rem .7rem; border:1px solid var(--warn); border-radius:4px;
@@ -768,8 +768,10 @@
     </fieldset>
 
     <button type="button" class="send" id="send" onclick="sendReport()">Send report</button>
-    <div id="msg"></div>
   </form>
+  <!-- Outside the form on purpose: a sent report hides #f, and a message inside it vanished with it, so
+       nobody ever saw "Got it — thank you" (caught on a phone test 2026-10-22). -->
+  <div id="msg"></div>
 </main>
 
 <aside>
