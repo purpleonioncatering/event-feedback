@@ -100,6 +100,11 @@
   @media (min-width:600px) { .trio { grid-template-columns:2fr 2fr 1fr; } }
   .trio .sub { display:block; font-size:.82rem; color:var(--muted); margin:0 0 .2rem; }
   .thumbs .thumb { display:inline-block; margin-right:.4rem; }
+
+  /* ---- training shift (v9) ---- */
+  #trainingQs { margin-top:1.1rem; padding-top:.4rem; border-top:1px dashed var(--line); }
+  .trHead { margin:.6rem 0 0; font-size:.9rem; text-transform:uppercase; letter-spacing:.04em; color:var(--plum); }
+  .comps .hint { display:block; margin:.1rem 0 0; }
 </style>
 </head>
 <body>
@@ -140,7 +145,7 @@
       <input type="text" id="name" required>
 
       <label>Your email</label>
-      <input type="email" id="email">
+      <input type="email" id="email" onchange="trainerCheckSoon()" onblur="trainerCheckSoon()">
       <p class="hint">Optional &mdash; only so we can follow up if we have a question.</p>
 
       <label class="req">Your role</label>
@@ -182,6 +187,49 @@
                placeholder="30 minutes late, wrong address given to driver">
         <p class="count"></p>
       </div>
+
+      <!-- v9 (2026-10-22): TRAINING SHIFT. Shown only to a Chef whose email the server confirms is an Active
+           assigned trainer (trainerCheck). No staff email or trainee name ever lives in this page: the trainee
+           list arrives with the check. -->
+      <div id="trainingQs" style="display:none">
+      <h3 class="trHead">Training shift</h3>
+      <label class="req">Were you the ASSIGNED trainer for a trainee tonight?</label>
+      <p class="hint">Only if you were assigned to train them. Helping someone out doesn't count.</p>
+      <div class="choices">
+        <label><input type="radio" name="trTrained" value="Yes" onchange="trainedToggle()">Yes</label>
+        <label><input type="radio" name="trTrained" value="No" onchange="trainedToggle()">No</label>
+      </div>
+      <div class="reveal" id="trYesWrap">
+        <label class="req">Who were you training?</label>
+        <select id="trTrainee"><option value="">Choose…</option></select>
+
+        <label class="req">Service style</label>
+        <div class="choices">
+          <label><input type="radio" name="trStyle" value="Plated">Plated</label>
+          <label><input type="radio" name="trStyle" value="Buffet or stations">Buffet or stations</label>
+          <label><input type="radio" name="trStyle" value="Family style">Family style</label>
+          <label><input type="radio" name="trStyle" value="Other">Other</label>
+        </div>
+
+        <label>What did they show you tonight? Tick only what you SAW them do.</label>
+        <div class="checks comps">
+          <label><input type="checkbox" name="trComp" value="Arrival + setup"><span><b>Arrival + setup</b><span class="hint">ten minutes early, clean uniform; checks in with the Event Chef; sorts truck boxes; runs a mise check unasked</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Receiving direction"><span><b>Receiving direction</b><span class="hint">asks the five questions; repeats direction back; takes notes and uses them</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Salads + cold items"><span><b>Salads + cold items</b><span class="hint">builds to spec; holds cold safely; flags tired produce</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Off-site sanitation"><span><b>Off-site sanitation</b><span class="hint">glove changes without being told; no phone with gloves; allergen plates get dedicated tools</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Line + holding"><span><b>Line + holding</b><span class="hint">sets a buffet line; loads a hot box (sheet trays, skip 2, sternos alternating corners); dry vs wet zones; handles sternos solo</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Technique under direction"><span><b>Technique under direction</b><span class="hint">plates without hovering; consistent across 50 plates; runs a station alone 10 min</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Communication"><span><b>Communication</b><span class="hint">raises problems right away; right person, right ask; polite with guests</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Pack-out"><span><b>Pack-out</b><span class="hint">packs a station unsupervised; leaves it cleaner; checks out with the Event Chef</span></span></label>
+          <label><input type="checkbox" name="trComp" value="Composure"><span><b>Composure</b><span class="hint">productive when it spikes; takes corrections without arguing; handles venue problems calmly</span></span></label>
+        </div>
+
+        <label class="req">Revisit next time</label>
+        <textarea id="trRevisit" rows="2" maxlength="200" oninput="cnt(this)"></textarea>
+        <p class="hint">The one thing to work on at their next shift.</p>
+        <p class="count"></p>
+      </div>
+      </div><!-- /trainingQs -->
       </div><!-- /chefQs -->
 
       <label class="req">How did service go overall? (1 rough &mdash; 5 excellent)</label>
@@ -1075,7 +1123,52 @@ var ES = {
   'a photo is required.': 'la foto es obligatoria.',
   'that photo looks blank. Retake it.': 'esa foto se ve en blanco. Tómala de nuevo.',
   'A supporting photo looks blank. Retake it.': 'Una de las fotos se ve en blanco. Tómala de nuevo.',
-  'Could not read that image.': 'No se pudo leer esa imagen.'
+  'Could not read that image.': 'No se pudo leer esa imagen.',
+  /* v9 — training shift */
+  'Training shift': 'Turno de entrenamiento',
+  'Were you the ASSIGNED trainer for a trainee tonight?': '¿Esta noche fuiste el entrenador ASIGNADO de alguien en entrenamiento?',
+  "Only if you were assigned to train them. Helping someone out doesn't count.": 'Solo si te asignaron para entrenarlo. Darle una mano a alguien no cuenta.',
+  'Who were you training?': '¿A quién estabas entrenando?',
+  'Service style': 'Estilo de servicio',
+  'Plated': 'Emplatado', 'Buffet or stations': 'Buffet o estaciones', 'Family style': 'Estilo familiar',
+  'What did they show you tonight? Tick only what you SAW them do.': '¿Qué te demostró esta noche? Marca solo lo que lo VISTE hacer.',
+  'Revisit next time': 'Repasar la próxima vez',
+  'The one thing to work on at their next shift.': 'Lo que tiene que trabajar en su próximo turno.',
+  'Arrival + setup': 'Llegada y montaje',
+  'ten minutes early, clean uniform; checks in with the Event Chef; sorts truck boxes; runs a mise check unasked':
+    'llega diez minutos antes, con el uniforme limpio; se reporta con el Chef del Evento; organiza las cajas del camión; revisa el mise en place sin que se lo pidan',
+  'Receiving direction': 'Recibir instrucciones',
+  'asks the five questions; repeats direction back; takes notes and uses them':
+    'hace las cinco preguntas; repite las instrucciones para confirmar; apunta y usa lo que apuntó',
+  'Salads + cold items': 'Ensaladas y platos fríos',
+  'builds to spec; holds cold safely; flags tired produce':
+    'arma según la especificación; mantiene lo frío a temperatura segura; avisa cuando los vegetales ya no están frescos',
+  'Off-site sanitation': 'Sanidad en el evento',
+  'glove changes without being told; no phone with gloves; allergen plates get dedicated tools':
+    'se cambia los guantes sin que se lo digan; no usa el celular con guantes puestos; los platos con alérgenos llevan sus propios utensilios',
+  'Line + holding': 'Línea y mantener la comida',
+  'sets a buffet line; loads a hot box (sheet trays, skip 2, sternos alternating corners); dry vs wet zones; handles sternos solo':
+    'monta una línea de buffet; carga un hot box (sheet trays, deja 2 espacios, sternos en esquinas alternas); separa zonas secas y mojadas; maneja los sternos solo',
+  'Technique under direction': 'Técnica siguiendo instrucciones',
+  'plates without hovering; consistent across 50 plates; runs a station alone 10 min':
+    'emplata sin que nadie lo esté vigilando; parejo en 50 platos; lleva una estación solo por 10 minutos',
+  'Communication': 'Comunicación',
+  'raises problems right away; right person, right ask; polite with guests':
+    'avisa los problemas enseguida; a la persona correcta, con la pregunta correcta; amable con los invitados',
+  'Pack-out': 'Recogido',
+  'packs a station unsupervised; leaves it cleaner; checks out with the Event Chef':
+    'recoge una estación sin supervisión; la deja más limpia de lo que la encontró; se reporta con el Chef del Evento antes de irse',
+  'Composure': 'Compostura',
+  'productive when it spikes; takes corrections without arguing; handles venue problems calmly':
+    'sigue produciendo cuando se pone intenso; acepta correcciones sin discutir; maneja los problemas del lugar con calma',
+  'Training: say whether you were the assigned trainer tonight.': 'Entrenamiento: di si fuiste el entrenador asignado esta noche.',
+  'Training: choose who you were training.': 'Entrenamiento: escoge a quién estabas entrenando.',
+  'Training: choose the service style.': 'Entrenamiento: escoge el estilo de servicio.',
+  'Training: fill in "Revisit next time".': 'Entrenamiento: llena "Repasar la próxima vez".',
+  'Training: "Revisit next time" is 200 characters at most.': 'Entrenamiento: "Repasar la próxima vez" tiene un máximo de 200 caracteres.',
+  'Training: only the Chef role can log a training shift.': 'Entrenamiento: solo el puesto de Chef puede reportar un turno de entrenamiento.',
+  'Training: only an assigned trainer on the Trainers list can log a training shift.': 'Entrenamiento: solo un entrenador asignado de la lista de entrenadores puede reportar un turno de entrenamiento.',
+  'Training: that trainee is not on the active trainee list.': 'Entrenamiento: esa persona no está en la lista activa de entrenamiento.'
 };
 var EN = {};
 Object.keys(ES).forEach(function (k) { EN[ES[k]] = k; });
@@ -1143,7 +1236,58 @@ function setRole() {
   document.getElementById('s-how').style.display = r === 'Sales' ? 'none' : '';
   salesFormToggle();
   photoRule();
+  trainerCheckSoon();   // v9: the training section is Chef-only, and only for a confirmed trainer
 }
+
+/* ---------------- v9: training shift (assigned trainers only) ----------------
+   The page holds no staff emails and no trainee names. It asks the server whether the typed email is an
+   Active trainer; only a yes comes back with the trainee list. A failed check just keeps the section hidden
+   and never blocks the rest of the form. One answer per email is cached for the session. */
+var TRAIN = { cache: {}, timer: null, email: '', on: false, trainees: [] };
+function trainerEmail() { return val('email').toLowerCase(); }
+function trainerCheckSoon() {
+  clearTimeout(TRAIN.timer);
+  TRAIN.timer = setTimeout(runTrainerCheck, 300);
+}
+function runTrainerCheck() {
+  var em = trainerEmail();
+  if (val('role') !== 'Chef' || !/^[^@\s]+@[^@\s]+$/.test(em)) return applyTrainer(em, null);
+  if (TRAIN.cache.hasOwnProperty(em)) return applyTrainer(em, TRAIN.cache[em]);
+  applyTrainer(em, null);   // hidden until the server says yes
+  askTrainer(em, function (res) {
+    if (res && res.ok) TRAIN.cache[em] = { trainer: res.trainer === true, trainees: res.trainer === true && Array.isArray(res.trainees) ? res.trainees : [] };
+    if (trainerEmail() === em) applyTrainer(em, TRAIN.cache[em] || null);   // a newer email won the race: ignore
+  }, function () { if (trainerEmail() === em) applyTrainer(em, null); });
+}
+function askTrainer(em, done, fail) {
+  try {
+    if (window.google && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(done).withFailureHandler(fail).trainerCheck(em);
+      return;
+    }
+    fetch(ENDPOINT, { method: 'POST', credentials: 'omit',
+                      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ trainerCheck: em }) })
+      .then(function (r) { if (!r.ok) throw new Error('the server returned ' + r.status); return r.json(); })
+      .then(done, fail);
+  } catch (e) { fail(e); }
+}
+function applyTrainer(em, res) {
+  var on = !!(res && res.trainer) && val('role') === 'Chef';
+  TRAIN.on = on; TRAIN.email = on ? em : ''; TRAIN.trainees = on ? res.trainees.slice() : [];
+  document.getElementById('trainingQs').style.display = on ? '' : 'none';
+  var sel = document.getElementById('trTrainee'), keep = sel.value;
+  sel.innerHTML = '';
+  // a BLANK first option, so an untouched select fails validation instead of sending the first name
+  var blank = document.createElement('option'); blank.value = ''; blank.textContent = t('Choose…');
+  sel.appendChild(blank);
+  TRAIN.trainees.forEach(function (n) {
+    var o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
+  });
+  sel.value = TRAIN.trainees.indexOf(keep) !== -1 ? keep : '';
+  trainedToggle();
+}
+function trainingOn() { return val('role') === 'Chef' && TRAIN.on && TRAIN.email === trainerEmail(); }
+function trainedToggle() { rev('trYesWrap', trainingOn() && radio('trTrained') === 'Yes'); }
 /* v7: Sales picks Tasting or Event; only the chosen form shows. */
 function salesForm() { return val('role') === 'Sales' ? radio('salesForm') : ''; }
 function salesFormToggle() {
@@ -1557,6 +1701,25 @@ function sendReport() {
     if (cp._blank) return msg('err', 'A supporting photo looks blank. Retake it.');
   }
 
+  /* ---- training shift (v9): only when the section is showing for this email ---- */
+  var training = null;
+  if (trainingOn()) {
+    var trained = radio('trTrained');
+    if (trained !== 'Yes' && trained !== 'No') return msg('err', 'Training: say whether you were the assigned trainer tonight.');
+    if (trained === 'Yes') {
+      var trainee = val('trTrainee');
+      if (!trainee || TRAIN.trainees.indexOf(trainee) === -1) return msg('err', 'Training: choose who you were training.');
+      if (!radio('trStyle')) return msg('err', 'Training: choose the service style.');
+      if (!val('trRevisit')) return msg('err', 'Training: fill in "Revisit next time".');
+      if (val('trRevisit').length > 200) return msg('err', 'Training: "Revisit next time" is 200 characters at most.');
+      training = { trained: 'Yes', trainee: trainee, serviceStyle: radio('trStyle'),
+                   competencies: [].slice.call(document.querySelectorAll('input[name="trComp"]:checked')).map(function (c) { return c.value; }),
+                   revisit: val('trRevisit') };
+    } else {
+      training = { trained: 'No', trainee: '', serviceStyle: '', competencies: [], revisit: '' };
+    }
+  }
+
   btn.disabled = true; btn.textContent = t('Sending…');
   msg('ok', 'Uploading…');
 
@@ -1587,9 +1750,11 @@ function sendReport() {
       salesPhotos: salesPhotos, items: items, lang: LANG,
       plateUpMinutes: plateUp, crewPhotos: crewPhotos
     };
+    if (training) payload.training = training;   // v9: omitted entirely when the section is not showing
     send(payload, function (res) {
       btn.disabled = false; btn.textContent = t('Send report');
-      if (!res || !res.ok) return msg('err', L('Not saved: ', 'No se guardó: ') + ((res && res.error) || 'unknown error') +
+      // t(): a server refusal that is also a page string (the v9 training ones) shows in Spanish
+      if (!res || !res.ok) return msg('err', L('Not saved: ', 'No se guardó: ') + t((res && res.error) || 'unknown error') +
         L(' — screenshot this and email it to kitchen@purpleonioncatering.com.', ' — toma una captura y mándala a kitchen@purpleonioncatering.com.'));
       document.getElementById('f').style.display = 'none';
       document.getElementById('guide').style.display = 'none';
