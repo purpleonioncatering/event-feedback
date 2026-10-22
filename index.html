@@ -194,14 +194,33 @@
       </div>
       </div>
 
+      <!-- each box in its own div so cnt() finds ITS counter, not the first one in the fieldset -->
+      <div>
       <label>Anything that went well and should be repeated?</label>
       <input type="text" id="wentWell" maxlength="200" oninput="cnt(this)">
+      <p class="hint">Need more room? Email it.</p>
       <p class="count"></p>
+      </div>
 
+      <div>
       <label>Anything else not tied to a specific dish?</label>
       <input type="text" id="otherNotes" maxlength="200" oninput="cnt(this)">
       <p class="hint">Venue, timing, logistics. Personnel problems go on the HR form, not here.</p>
+      <p class="hint">Need more room? Email it.</p>
       <p class="count"></p>
+      </div>
+
+      <div id="crewQs"><!-- v8 (2026-10-22): Chef + Captain only -->
+      <label>Plated dinner: minutes from first plate out to last plate down</label>
+      <input type="number" id="plateUpMinutes" min="1" max="180" step="1" inputmode="numeric" placeholder="25">
+      <p class="hint">Leave blank if it wasn't a plated dinner.</p>
+
+      <div class="q">
+        <label>Any photos worth sharing? (optional, up to 3)</label>
+        <input type="file" id="crewPhotos" accept="image/*" multiple data-max="3" onchange="previewMany(this)">
+        <div class="thumbs"></div>
+      </div>
+      </div><!-- /crewQs -->
     </fieldset>
 
     <!-- ============ CAPTAIN ONLY ============ -->
@@ -857,6 +876,13 @@ var ES = {
   'Anything that went well and should be repeated?': '¿Algo que salió bien y se debería repetir?',
   'Anything else not tied to a specific dish?': '¿Algo más que no tenga que ver con un plato en específico?',
   'Venue, timing, logistics. Personnel problems go on the HR form, not here.': 'Lugar, horarios, logística. Los problemas con personal van con Recursos Humanos, no aquí.',
+  /* chef + captain extras (v8, 2026-10-22) */
+  'Need more room? Email it.': '¿Necesitas más espacio? Mándalo por correo.',
+  'Plated dinner: minutes from first plate out to last plate down': 'Cena emplatada: minutos desde que sale el primer plato hasta que el último está en la mesa',
+  "Leave blank if it wasn't a plated dinner.": 'Déjalo en blanco si no fue una cena emplatada.',
+  'Any photos worth sharing? (optional, up to 3)': '¿Alguna foto que valga la pena compartir? (opcional, máximo 3)',
+  'Plate-up time should be a whole number of minutes, 1 to 180.': 'El tiempo de emplatado debe ser un número entero de minutos, del 1 al 180.',
+  'Up to 3 photos — pick 3 or fewer.': 'Máximo 3 fotos — elige 3 o menos.',
   'Captain — the room': 'Capitán — el salón',
   'Did you check in with the client or host before leaving?': '¿Hablaste con el cliente o anfitrión antes de irte?',
   'Could not reach them': 'No pude localizarlos',
@@ -1108,6 +1134,8 @@ function setRole() {
   show('s-items',   r === 'Chef' || r === 'Captain' || r === 'Sales');
   document.getElementById('opsQs').style.display = r === 'Sales' ? 'none' : '';
   document.getElementById('chefQs').style.display = r === 'Chef' ? '' : 'none';
+  // v8: plate-up time + photos worth sharing — the two people who watch the food go out
+  document.getElementById('crewQs').style.display = r === 'Chef' || r === 'Captain' ? '' : 'none';
   // v7: the sales forms carry their own date + TPP # and their own "went well", so the shared ones hide
   document.getElementById('evtQs').style.display = r === 'Sales' ? 'none' : '';
   document.getElementById('s-how').style.display = r === 'Sales' ? 'none' : '';
@@ -1219,11 +1247,23 @@ function preview(input) {
   img.src = URL.createObjectURL(input.files[0]);
   img.style.display = 'block';
 }
-/* sales "supporting photos": several files, one thumbnail each */
+/* sales "supporting photos" + chef/captain "photos worth sharing": several files, one thumbnail each.
+   data-max caps the count (v8: 3 for chef/captain); over the cap the whole pick is cleared, not trimmed,
+   so nobody sends a photo they did not choose to keep. */
 function previewMany(input) {
   var box = input.closest('.q').querySelector('.thumbs');
+  var max = +input.getAttribute('data-max') || 0, picked = (input.files || []).length;
   box.innerHTML = '';
-  blankCheck(input);
+  if (max && picked > max) input.value = '';
+  blankCheck(input);   // also clears any earlier warning under this input
+  if (max && picked > max) {
+    var warn = document.createElement('div');
+    warn.className = 'blankWarn';
+    warn.textContent = L('Up to ' + max + ' photos. You picked ' + picked + ' — choose ' + max + ' or fewer.',
+                         'Máximo ' + max + ' fotos. Escogiste ' + picked + ' — elige ' + max + ' o menos.');
+    input.insertAdjacentElement('afterend', warn);
+    return;
+  }
   [].slice.call(input.files).forEach(function (file) {
     var img = document.createElement('img');
     img.className = 'thumb'; img.src = URL.createObjectURL(file);
@@ -1500,6 +1540,21 @@ function sendReport() {
     if (many[q] && many[q]._blank && vis(many[q].closest('fieldset').id))
       return msg('err', 'A supporting photo looks blank. Retake it.');
 
+  /* ---- chef + captain extras (v8): plate-up minutes + up to 3 photos worth sharing ---- */
+  var crew = role === 'Chef' || role === 'Captain', plateUp = '', crewFiles = [];
+  if (crew) {
+    var pu = document.getElementById('plateUpMinutes');
+    plateUp = val('plateUpMinutes');
+    // badInput = the box holds something that is not a number (the browser then reports value as '')
+    if ((pu.validity && pu.validity.badInput) ||
+        (plateUp && !(/^[0-9]+$/.test(plateUp) && +plateUp >= 1 && +plateUp <= 180)))
+      return msg('err', 'Plate-up time should be a whole number of minutes, 1 to 180.');
+    var cp = document.getElementById('crewPhotos');
+    crewFiles = [].slice.call(cp.files || []);
+    if (crewFiles.length > (+cp.getAttribute('data-max') || 3)) return msg('err', 'Up to 3 photos — pick 3 or fewer.');
+    if (cp._blank) return msg('err', 'A supporting photo looks blank. Retake it.');
+  }
+
   btn.disabled = true; btn.textContent = t('Sending…');
   msg('ok', 'Uploading…');
 
@@ -1518,8 +1573,8 @@ function sendReport() {
         photo:    photo
       };
     });
-  })), Promise.all(photoFiles.map(shrink))]).then(function (done) {
-    var items = done[0], salesPhotos = done[1];
+  })), Promise.all(photoFiles.map(shrink)), Promise.all(crewFiles.map(shrink))]).then(function (done) {
+    var items = done[0], salesPhotos = done[1], crewPhotos = done[2];
     var payload = {
       eventNumber: evNum, eventDate: evDate, name: val('name'),
       email: val('email'), role: role,
@@ -1527,7 +1582,8 @@ function sendReport() {
       truckOnTime: radio('truckOnTime'), truckLateDetail: val('truckLateDetail'),
       service: radio('service'), wentWell: wentWell, otherNotes: otherNotes,
       captain: captain, bar: bar, salesTasting: salesTasting, salesEvent: salesEvent,
-      salesPhotos: salesPhotos, items: items, lang: LANG
+      salesPhotos: salesPhotos, items: items, lang: LANG,
+      plateUpMinutes: plateUp, crewPhotos: crewPhotos
     };
     send(payload, function (res) {
       btn.disabled = false; btn.textContent = t('Send report');
