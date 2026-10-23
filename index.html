@@ -472,6 +472,13 @@
     <fieldset class="roleonly" id="s-bar">
       <legend>Bar</legend>
 
+      <label class="req">Whose alcohol was it?</label>
+      <div class="choices">
+        <label><input type="radio" name="barSource" value="Purple Onion" onchange="srcToggle()">Purple Onion</label>
+        <label><input type="radio" name="barSource" value="Client or outside supplier" onchange="srcToggle()">Client or outside supplier</label>
+      </div>
+      <p class="hint" id="srcHint" style="display:none">Not our alcohol, so no inventory or return question.</p>
+
       <label class="req">Was the bar set up and presented according to the event plan?</label>
       <div class="choices">
         <label><input type="radio" name="barSetup" value="Yes" onchange="bsToggle()">Yes</label>
@@ -501,6 +508,7 @@
         <p class="count"></p>
       </div>
 
+      <div id="poBarOnly">
       <label>Bottle / item counts (leave blank if none)</label>
       <div class="inv-grid">
         <div class="inv-cell"><span>Vodka</span><input type="number" id="invVodka" min="0"></div>
@@ -540,6 +548,7 @@
         <input type="text" id="barReturnDetail" maxlength="200" oninput="cnt(this)">
         <p class="count"></p>
       </div>
+      </div><!-- /poBarOnly -->
 
       <label class="req">Was anything from the bar missing, broken, or damaged?</label>
       <div class="choices">
@@ -985,6 +994,10 @@ var ES = {
   'Juice — list types and counts': 'Jugos — tipos y cantidades',
   'OJ 2, Cranberry 1, Grapefruit 1': 'Naranja 2, Arándano 1, Toronja 1',
   'Was all leftover alcohol returned to the correct location?': '¿Todo el alcohol sobrante se devolvió al lugar correcto?',
+  'Whose alcohol was it?': '¿De quién era el alcohol?',
+  'Client or outside supplier': 'Del cliente o de otro suplidor',
+  'Not our alcohol, so no inventory or return question.': 'No es nuestro alcohol, así que no hay inventario ni pregunta de devolución.',
+  'Bar section: say whose alcohol it was.': 'Sección del bar: di de quién era el alcohol.',
   'Where was it left?': '¿Dónde se dejó?',
   'Was anything from the bar missing, broken, or damaged?': '¿Faltaba, se rompió o se dañó algo del bar?',
   'Is there anything else from the bar that a manager needs to follow up on?': '¿Hay algo más del bar que un gerente deba revisar?',
@@ -1336,6 +1349,11 @@ function cvToggle()    { rev('cvWrap',     radio('coreValue') === 'Yes'); }
 function bsToggle() { rev('bsWrap', radio('barSetup') === 'No'); }
 function biToggle() { rev('biWrap', radio('barIssue') === 'Yes'); }
 function brToggle() { rev('brWrap', radio('barAlcoholReturned') === 'No'); }
+function notOurBar() { return radio('barSource') === 'Client or outside supplier'; }   // v10
+function srcToggle() {
+  document.getElementById('poBarOnly').style.display = notOurBar() ? 'none' : '';
+  document.getElementById('srcHint').style.display = notOurBar() ? '' : 'none';
+}
 function bdToggle() { rev('bdWrap', radio('barDamaged') === 'Yes'); }
 function bvToggle() { rev('bvWrap', radio('barVenueNotes') === 'Yes'); }
 function bfToggle() { rev('bfWrap', radio('barFollowUp') === 'Yes'); }
@@ -1370,20 +1388,37 @@ function addItem() {
 // Downscale before upload. A raw phone photo is 3-5MB and base64 inflates it by a third;
 // three of those will fail on venue wifi at 11pm. 1600px / q0.8 lands around 300KB and is
 // still far more detail than anyone needs to see that a sauce broke.
+// v11 (2026-10-22): decode big phone photos DOWNSCALED. A 24-48 MP iPhone photo drawn whole into a canvas can
+// come back empty on iOS Safari (memory limit), which the blank check scored 0 and refused real photos.
+// createImageBitmap resizes while decoding; browsers without it fall back to <img> + drawImage.
+function drawScaled(file, maxW, maxH, fit) {
+  function size(w0, h0) {
+    if (!fit) return { w: maxW, h: maxH };
+    var r = Math.min(1, maxW / w0, maxH / h0); return { w: Math.round(w0 * r), h: Math.round(h0 * r) };
+  }
+  function paint(src, w0, h0) {
+    var s = size(w0, h0), c = document.createElement('canvas'); c.width = s.w; c.height = s.h;
+    c.getContext('2d').drawImage(src, 0, 0, s.w, s.h); return c;
+  }
+  function viaImg() {
+    return new Promise(function (resolve, reject) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () { try { resolve(paint(img, img.width, img.height)); } catch (e) { reject(e); } finally { URL.revokeObjectURL(url); } };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
+      img.src = url;
+    });
+  }
+  if (typeof createImageBitmap !== 'function') return viaImg();
+  return createImageBitmap(file).then(function (full) {
+    var s = size(full.width, full.height), w0 = full.width, h0 = full.height;
+    if (full.close) full.close();
+    return createImageBitmap(file, { resizeWidth: s.w, resizeHeight: s.h, resizeQuality: 'medium' })
+      .then(function (bmp) { var c = paint(bmp, bmp.width, bmp.height); if (bmp.close) bmp.close(); return c; });
+  }).catch(viaImg);
+}
 function shrink(file) {
-  return new Promise(function (resolve, reject) {
-    var img = new Image(), url = URL.createObjectURL(file);
-    img.onload = function () {
-      var max = 1600, w = img.width, h = img.height;
-      if (w > max || h > max) { var r = Math.min(max / w, max / h); w = Math.round(w * r); h = Math.round(h * r); }
-      var c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      resolve({ name: file.name, mimeType: 'image/jpeg',
-                data: c.toDataURL('image/jpeg', 0.8).split(',')[1] });
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
-    img.src = url;
+  return drawScaled(file, 1600, 1600, true).then(function (c) {
+    return { name: file.name, mimeType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.8).split(',')[1] };
   });
 }
 function preview(input) {
@@ -1425,21 +1460,22 @@ function previewMany(input) {
 // The margin is wide (blank 5.9 vs real food 17.9+, real shots at 1/4 brightness 26+ after the
 // contrast stretch). An image it cannot measure (HEIC on desktop, a decode error) is not refused.
 var BLANK_EDGE = 8;
+// v11: a frame the browser never painted (every pixel transparent) or one with no variation at all is a
+// failed decode, not a photo, so it scores null (not refused). A covered lens still has some tone (3.7).
 function edgeScore(file) {
-  return new Promise(function (resolve) {
-    var img = new Image(), url = URL.createObjectURL(file);
-    img.onload = function () {
-      var score = null;
-      try {
-        var w = 160, h = 120, c = document.createElement('canvas'); c.width = w; c.height = h;
-        var g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
-        var d = g.getImageData(0, 0, w, h).data, y = new Float32Array(w * h), sum = 0, n = 0, i, x;
+  return drawScaled(file, 160, 120, false).then(function (c) {
+    var score = null;
+    try {
+        var w = 160, h = 120, g = c.getContext('2d');
+        var d = g.getImageData(0, 0, w, h).data, y = new Float32Array(w * h), sum = 0, n = 0, i, x, painted = false;
+        for (i = 3; i < d.length; i += 4) if (d[i]) { painted = true; break; }
+        if (!painted) return null;
         for (i = 0; i < w * h; i++) y[i] = 0.299 * d[4 * i] + 0.587 * d[4 * i + 1] + 0.114 * d[4 * i + 2];
         // Stretch contrast first (2nd-98th percentile to 0-255), so a dim venue shot scores on its
         // detail, not its brightness; without this a real photo at 1/4 brightness fell under 8.
         var srt = Array.prototype.slice.call(y).sort(function (a, b) { return a - b; });
         var lo = srt[Math.floor(srt.length * 0.02)], hi = srt[Math.floor(srt.length * 0.98)];
-        if (hi - lo < 1) { URL.revokeObjectURL(url); resolve(0); return; }
+        if (hi - lo < 1) return null;
         for (i = 0; i < w * h; i++) y[i] = (y[i] - lo) * 255 / (hi - lo);
         for (i = 1; i < h - 1; i++) for (x = 1; x < w - 1; x++) {
           var k = i * w + x;
@@ -1448,13 +1484,9 @@ function edgeScore(file) {
           sum += v < 0 ? 0 : (v > 255 ? 255 : v); n++;
         }
         score = sum / n;
-      } catch (e) { score = null; }
-      URL.revokeObjectURL(url);
-      resolve(score);
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
-    img.src = url;
-  });
+    } catch (e) { score = null; }
+    return score;
+  }, function () { return null; });
 }
 function blankCheck(input) {
   var old = input.parentNode.querySelector('.blankWarn');
@@ -1635,13 +1667,14 @@ function sendReport() {
 
   /* ---- bar validation ---- */
   if (role === 'Bartender') {
+    if (!radio('barSource')) return msg('err', 'Bar section: say whose alcohol it was.');
     if (!radio('barSetup')) return msg('err', 'Bar section: answer the bar setup question.');
     if (radio('barSetup') === 'No' && !val('barSetupDetail')) return msg('err', 'Describe how the bar setup was different.');
     if (!radio('barSupplies')) return msg('err', 'Bar section: answer the supplies question.');
     if (!radio('barIssue')) return msg('err', 'Bar section: answer the guest/alcohol issue question.');
     if (radio('barIssue') === 'Yes' && !val('barIssueDetail')) return msg('err', 'Describe the guest or alcohol issue.');
-    if (!radio('barAlcoholReturned')) return msg('err', 'Bar section: answer the alcohol return question.');
-    if (radio('barAlcoholReturned') === 'No' && !val('barReturnDetail')) return msg('err', 'Say where the alcohol was left.');
+    if (!notOurBar() && !radio('barAlcoholReturned')) return msg('err', 'Bar section: answer the alcohol return question.');
+    if (!notOurBar() && radio('barAlcoholReturned') === 'No' && !val('barReturnDetail')) return msg('err', 'Say where the alcohol was left.');
     if (!radio('barDamaged')) return msg('err', 'Bar section: answer the damaged/missing question.');
     if (radio('barDamaged') === 'Yes' && !val('barDamageDetail')) return msg('err', 'List what was damaged or missing from the bar.');
     if (!radio('barVenueNotes')) return msg('err', 'Bar section: answer the venue/client notes question.');
@@ -1649,6 +1682,7 @@ function sendReport() {
     if (!radio('barFollowUp')) return msg('err', 'Bar section: answer the follow-up question.');
     if (radio('barFollowUp') === 'Yes' && !val('barFollowDetail')) return msg('err', 'Explain what needs follow-up.');
     bar = {
+      alcoholSource: radio('barSource'),
       barSetup: radio('barSetup'), barSetupDetail: val('barSetupDetail'),
       allSupplies: radio('barSupplies'),
       guestIssue: radio('barIssue'), issueDetail: val('barIssueDetail'),
@@ -1664,6 +1698,10 @@ function sendReport() {
       barVenueNotes: radio('barVenueNotes'), barVenueDetail: val('barVenueDetail'),
       barFollowUp: radio('barFollowUp'), barFollowDetail: val('barFollowDetail')
     };
+    if (notOurBar()) {   // v10: hidden answers never travel
+      Object.keys(bar).forEach(function (k) { if (/^inv/.test(k)) bar[k] = ''; });
+      bar.alcoholReturned = ''; bar.alcoholReturnDetail = '';
+    }
   }
 
   /* ---- item validation (chef + captain) ---- */
