@@ -629,6 +629,20 @@
       <label>Who was the tasting chef?</label>
       <input type="text" id="stChef" maxlength="120">
 
+      <!-- v14: tap-to-answer facts, so tastings can be counted (timing, pace, ratings, portions) -->
+      <label class="req">What time did the tasting start and end?</label>
+      <div class="choices">
+        <label>Start <input type="time" id="stStart"></label>
+        <label>End <input type="time" id="stEnd"></label>
+      </div>
+
+      <label class="req">How was the pace between courses?</label>
+      <div class="choices">
+        <label><input type="radio" name="stPace" value="On time">On time</label>
+        <label><input type="radio" name="stPace" value="Some gaps">Some gaps</label>
+        <label><input type="radio" name="stPace" value="Long waits">Long waits</label>
+      </div>
+
       <div class="q">
         <label>What went well during the tasting?</label>
         <textarea id="stWentWell" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
@@ -636,36 +650,84 @@
       </div>
 
       <div class="q">
-        <label>What feedback did the client have about the appetizers?</label>
+        <label class="req">How did the client rate the appetizers? (1 = Poor, 5 = Excellent)</label>
+        <div class="choices scale">
+        <label><input type="radio" name="stAppsR" value="1">1</label>
+        <label><input type="radio" name="stAppsR" value="2">2</label>
+        <label><input type="radio" name="stAppsR" value="3">3</label>
+        <label><input type="radio" name="stAppsR" value="4">4</label>
+        <label><input type="radio" name="stAppsR" value="5">5</label>
+        <label><input type="radio" name="stAppsR" value="N/A">N/A</label>
+        </div>
+        <label>Comment on the appetizers (optional)</label>
         <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
         <textarea id="stApps" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
       </div>
 
       <div class="q">
-        <label>What feedback did the client have about the salad?</label>
+        <label class="req">How did the client rate the salad? (1 = Poor, 5 = Excellent)</label>
+        <div class="choices scale">
+        <label><input type="radio" name="stSaladR" value="1">1</label>
+        <label><input type="radio" name="stSaladR" value="2">2</label>
+        <label><input type="radio" name="stSaladR" value="3">3</label>
+        <label><input type="radio" name="stSaladR" value="4">4</label>
+        <label><input type="radio" name="stSaladR" value="5">5</label>
+        <label><input type="radio" name="stSaladR" value="N/A">N/A</label>
+        </div>
+        <label>Comment on the salad (optional)</label>
         <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
         <textarea id="stSalad" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
       </div>
 
       <div class="q">
-        <label>What feedback did the client have about the entrée?</label>
+        <label class="req">How did the client rate the entrée? (1 = Poor, 5 = Excellent)</label>
+        <div class="choices scale">
+        <label><input type="radio" name="stEntreeR" value="1">1</label>
+        <label><input type="radio" name="stEntreeR" value="2">2</label>
+        <label><input type="radio" name="stEntreeR" value="3">3</label>
+        <label><input type="radio" name="stEntreeR" value="4">4</label>
+        <label><input type="radio" name="stEntreeR" value="5">5</label>
+        <label><input type="radio" name="stEntreeR" value="N/A">N/A</label>
+        </div>
+        <label>Comment on the entrée (optional)</label>
         <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
         <textarea id="stEntree" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
       </div>
 
       <div class="q">
-        <label>What feedback did the client have about dessert?</label>
+        <label class="req">How did the client rate the dessert? (1 = Poor, 5 = Excellent)</label>
+        <div class="choices scale">
+        <label><input type="radio" name="stDessertR" value="1">1</label>
+        <label><input type="radio" name="stDessertR" value="2">2</label>
+        <label><input type="radio" name="stDessertR" value="3">3</label>
+        <label><input type="radio" name="stDessertR" value="4">4</label>
+        <label><input type="radio" name="stDessertR" value="5">5</label>
+        <label><input type="radio" name="stDessertR" value="N/A">N/A</label>
+        </div>
+        <label>Comment on the dessert (optional)</label>
         <p class="hint">Please consider flavor, texture, appearance/color, and temperature.</p>
         <textarea id="stDessert" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
       </div>
 
-      <div class="q">
-        <label>Is there any other food feedback to note?</label>
-        <textarea id="stOtherFood" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+      <label class="req">How were the portions?</label>
+      <div class="choices">
+        <label><input type="radio" name="stPortions" value="Right">Right</label>
+        <label><input type="radio" name="stPortions" value="Too much">Too much</label>
+        <label><input type="radio" name="stPortions" value="Too little">Too little</label>
+      </div>
+
+      <label class="req">Did the food match the menu?</label>
+      <div class="choices">
+        <label><input type="radio" name="stMatched" value="Yes" onchange="stMatchToggle()">Yes</label>
+        <label><input type="radio" name="stMatched" value="Something missing or different" onchange="stMatchToggle()">Something missing or different</label>
+      </div>
+      <div class="reveal" id="stMatchWrap">
+        <label class="req">Which item, and what was different?</label>
+        <textarea id="stMatchedDetail" rows="2" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
       </div>
 
@@ -675,10 +737,12 @@
         <p class="count"></p>
       </div>
 
-      <div class="q">
-        <label>How likely is the client to book?</label>
-        <input type="text" id="stBook" maxlength="200" oninput="cnt(this)">
-        <p class="count"></p>
+      <label class="req">How likely is the client to book?</label>
+      <div class="choices">
+        <label><input type="radio" name="stBook" value="Booked">Booked</label>
+        <label><input type="radio" name="stBook" value="Likely">Likely</label>
+        <label><input type="radio" name="stBook" value="Unsure">Unsure</label>
+        <label><input type="radio" name="stBook" value="Unlikely">Unlikely</label>
       </div>
 
       <label>What was the client's favorite item tasted?</label>
@@ -705,13 +769,7 @@
       </div>
 
       <div class="q">
-        <label>Please share any additional feedback.</label>
-        <textarea id="stAdditional" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
-        <p class="count"></p>
-      </div>
-
-      <div class="q">
-        <label>Are there any additional comments or suggestions for the culinary team?</label>
+        <label>Anything else for the kitchen? (optional)</label>
         <textarea id="stCulinary" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
       </div>
@@ -927,6 +985,27 @@
    backend (LanguageApp) and the Spanish original is kept in its own column. Casual "tú" throughout.
    Lookup works both ways off one table, so labels that JS rewrites later still flip back. */
 var ES = {
+  // v14 — sales tasting taps
+  'What time did the tasting start and end?': '¿A qué hora empezó y terminó la degustación?', 'Start': 'Inicio', 'End': 'Fin',
+  'How was the pace between courses?': '¿Cómo fue el ritmo entre platos?', 'On time': 'A tiempo', 'Some gaps': 'Algunas pausas', 'Long waits': 'Esperas largas',
+  'How did the client rate the appetizers? (1 = Poor, 5 = Excellent)': '¿Cómo calificó el cliente los aperitivos? (1 = Malo, 5 = Excelente)',
+  'How did the client rate the salad? (1 = Poor, 5 = Excellent)': '¿Cómo calificó el cliente la ensalada? (1 = Malo, 5 = Excelente)',
+  'How did the client rate the entrée? (1 = Poor, 5 = Excellent)': '¿Cómo calificó el cliente el plato principal? (1 = Malo, 5 = Excelente)',
+  'How did the client rate the dessert? (1 = Poor, 5 = Excellent)': '¿Cómo calificó el cliente el postre? (1 = Malo, 5 = Excelente)',
+  'Comment on the appetizers (optional)': 'Comentario sobre los aperitivos (opcional)', 'Comment on the salad (optional)': 'Comentario sobre la ensalada (opcional)',
+  'Comment on the entrée (optional)': 'Comentario sobre el plato principal (opcional)', 'Comment on the dessert (optional)': 'Comentario sobre el postre (opcional)',
+  'How were the portions?': '¿Cómo estuvieron las porciones?', 'Right': 'Bien', 'Too much': 'Demasiado', 'Too little': 'Muy poco',
+  'Did the food match the menu?': '¿La comida coincidió con el menú?', 'Something missing or different': 'Algo faltó o fue diferente',
+  'Which item, and what was different?': '¿Qué plato, y qué fue diferente?',
+  'Booked': 'Ya reservó', 'Likely': 'Probable', 'Unsure': 'No está seguro', 'Unlikely': 'Poco probable',
+  'Anything else for the kitchen? (optional)': '¿Algo más para la cocina? (opcional)',
+  'Please enter the tasting start and end time.': 'Pon la hora de inicio y fin de la degustación.',
+  'Please answer the pace question.': 'Contesta la pregunta del ritmo.',
+  'Please rate every course (or pick N/A).': 'Califica cada plato (o elige N/A).',
+  'Please answer the portions question.': 'Contesta la pregunta de las porciones.',
+  'Please say whether the food matched the menu.': 'Di si la comida coincidió con el menú.',
+  'Say which item was missing or different.': 'Di qué plato faltó o fue diferente.',
+  'Please answer how likely the client is to book.': 'Contesta qué tan probable es que el cliente reserve.',
   'Purple Onion — Event Feedback': 'Purple Onion — Reporte del evento',
   'Due within 24 hours of the event. About a minute if nothing went wrong.': 'Entrégalo dentro de las 24 horas del evento. Toma como un minuto si todo salió bien.',
   'Interpersonal issues': 'Problemas interpersonales',
@@ -1383,6 +1462,7 @@ function vis(id) { return document.getElementById(id).classList.contains('on'); 
 function rev(wrapId, on) { document.getElementById(wrapId).classList.toggle('on', !!on); }
 
 /* shared */
+function stMatchToggle() { rev('stMatchWrap', radio('stMatched') && radio('stMatched') !== 'Yes'); }   // v14
 function eqToggle()    { rev('eqDetailWrap', radio('equipment') && radio('equipment') !== 'Yes'); }
 function truckToggle() { rev('truckWrap', radio('truckOnTime') === 'No'); }
 
@@ -1642,14 +1722,28 @@ function sendReport() {
       if (!/^[0-9]{5}$/.test(val('stTpp'))) return msg('err', 'Tasting event TPP # should be five digits.');
       // optional: a client who has not booked yet has no full-service event; if given it must still be 5 digits
       if (val('stFullTpp') && !/^[0-9]{5}$/.test(val('stFullTpp'))) return msg('err', 'Full-service event TPP # should be five digits.');
+      // v14 — the tap-to-answer facts are required; the typed boxes stay optional
+      if (!val('stStart') || !val('stEnd')) return msg('err', 'Please enter the tasting start and end time.');
+      if (!radio('stPace')) return msg('err', 'Please answer the pace question.');
+      if (!radio('stAppsR') || !radio('stSaladR') || !radio('stEntreeR') || !radio('stDessertR'))
+        return msg('err', 'Please rate every course (or pick N/A).');
+      if (!radio('stPortions')) return msg('err', 'Please answer the portions question.');
+      if (!radio('stMatched')) return msg('err', 'Please say whether the food matched the menu.');
+      if (radio('stMatched') !== 'Yes' && !val('stMatchedDetail')) return msg('err', 'Say which item was missing or different.');
+      if (!radio('stBook')) return msg('err', 'Please answer how likely the client is to book.');
       salesTasting = {
         tastingDate: val('stDate'), tastingTpp: val('stTpp'), fullServiceTpp: val('stFullTpp'),
         serviceStyle: val('stStyle'), tastingChef: val('stChef'),
         wentWell: val('stWentWell'), appetizers: val('stApps'), salad: val('stSalad'),
-        entree: val('stEntree'), dessert: val('stDessert'), otherFood: val('stOtherFood'),
-        clientExperience: val('stExperience'), likelyToBook: val('stBook'), favoriteItem: val('stFavorite'),
-        concerns: val('stConcerns'), rating: radio('stRating'), additional: val('stAdditional'),
-        culinaryComments: val('stCulinary')
+        entree: val('stEntree'), dessert: val('stDessert'), otherFood: '',
+        clientExperience: val('stExperience'), likelyToBook: radio('stBook'), favoriteItem: val('stFavorite'),
+        concerns: val('stConcerns'), rating: radio('stRating'), additional: '',
+        culinaryComments: val('stCulinary'),
+        // v14
+        startTime: val('stStart'), endTime: val('stEnd'), pace: radio('stPace'),
+        appsRating: radio('stAppsR'), saladRating: radio('stSaladR'), entreeRating: radio('stEntreeR'),
+        dessertRating: radio('stDessertR'), portions: radio('stPortions'), matched: radio('stMatched'),
+        matchedDetail: radio('stMatched') === 'Yes' ? '' : val('stMatchedDetail')
       };
       evNum = salesTasting.tastingTpp; evDate = salesTasting.tastingDate;
       photoFiles = [].slice.call(document.getElementById('stPhotos').files);
