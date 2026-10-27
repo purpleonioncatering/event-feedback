@@ -145,7 +145,7 @@
       <input type="text" id="name" required>
 
       <label>Your email</label>
-      <input type="email" id="email" onchange="trainerCheckSoon()" onblur="trainerCheckSoon()">
+      <input type="email" id="email" onchange="trainerCheckSoon(); leaderCheckSoon()" onblur="trainerCheckSoon(); leaderCheckSoon()">
       <p class="hint">Optional &mdash; only so we can follow up if we have a question.</p>
 
       <label class="req">Your role</label>
@@ -155,7 +155,9 @@
         <option value="Captain">Captain</option>
         <option value="Bartender">Bartender</option>
         <option value="Sales">Sales (event designer / associate)</option>
+        <option value="Leadership">Leadership (salaried, not sales)</option>
       </select>
+      <p class="hint" id="leaderStatus" style="display:none"></p>
     </fieldset>
 
     <fieldset id="s-how">
@@ -242,6 +244,16 @@
       </div>
       </div>
 
+      <!-- v12: Leadership writes one long, clean QC notes box instead of the two short ones -->
+      <div id="leaderQs" style="display:none">
+      <label class="req">QC notes</label>
+      <textarea id="qcNotes" rows="10" maxlength="4000" oninput="cnt(this)"
+                placeholder="What you saw, what you fixed or coached, and what needs to change."></textarea>
+      <p class="hint">Write it clean: what happened, what you did, what needs to change.</p>
+      <p class="count"></p>
+      </div>
+
+      <div id="notesQs">
       <!-- each box in its own div so cnt() finds ITS counter, not the first one in the fieldset -->
       <div>
       <label>Anything that went well and should be repeated?</label>
@@ -257,6 +269,7 @@
       <p class="hint">Need more room? Email it.</p>
       <p class="count"></p>
       </div>
+      </div><!-- /notesQs -->
 
       <div id="crewQs"><!-- v8 (2026-10-22): Chef + Captain only -->
       <label>Plated dinner: minutes from first plate out to last plate down</label>
@@ -901,7 +914,7 @@
 
       <label class="req picLabel">Photo of this item</label>
       <input type="file" class="pic" accept="image/*" onchange="preview(this)">
-      <p class="hint picHint">Required. Take it on your phone &mdash; it uploads straight from here.</p>
+      <p class="hint picHint">Required (not if the item was missing entirely). Take it on your phone &mdash; it uploads straight from here.</p>
       <img class="thumb" style="display:none">
     </div>
   </div>
@@ -921,6 +934,13 @@ var ES = {
   'The event': 'El evento', 'Event number': 'Número de evento', 'The 5-digit invoice number.': 'El número de factura de 5 dígitos.',
   'Event date': 'Fecha del evento', 'Your name': 'Tu nombre', 'Your email': 'Tu correo electrónico',
   'Optional — only so we can follow up if we have a question.': 'Opcional — solo para contactarte si tenemos alguna pregunta.',
+  'Leadership (salaried, not sales)': 'Liderazgo (asalariado, no ventas)', 'QC notes': 'Notas de QC',
+  'Leadership: confirmed.': 'Liderazgo: confirmado.',
+  'Leadership: this email is not on the Leadership list.': 'Liderazgo: este email no está en la lista de liderazgo.',
+  'Leadership: write your QC notes.': 'Liderazgo: escribe tus notas de QC.',
+  'Leadership: enter your work email above.': 'Liderazgo: pon tu email del trabajo arriba.',
+  'Could not check the Leadership list — try again.': 'No se pudo chequear la lista de liderazgo — intenta otra vez.',
+  'Checking…': 'Chequeando…',
   'Your role': 'Tu puesto', 'Choose…': 'Elige…', 'Captain': 'Capitán',
   'Sales (event designer / associate)': 'Ventas (diseñador/a o asociado/a de eventos)',
   'How it went': 'Cómo salió',
@@ -1078,7 +1098,7 @@ var ES = {
   'Affected service': 'Afectó el servicio', 'Client noticed or commented': 'El cliente lo notó o comentó',
   'What you saw, not how it felt.': 'Lo que viste, no cómo te sentiste.',
   'Photo of this item': 'Foto de este plato',
-  'Required. Take it on your phone — it uploads straight from here.': 'Obligatoria. Tómala con tu celular — se sube directo desde aquí.',
+  'Required (not if the item was missing entirely). Take it on your phone — it uploads straight from here.': 'Obligatoria (menos si el plato no llegó). Tómala con tu celular — se sube directo desde aquí.',
   'Optional for sales. If you have one, it uploads straight from here.': 'Opcional para ventas. Si tienes una, se sube directo desde aquí.',
   /* validation messages */
   'Event number should be five digits.': 'El número de evento debe tener cinco dígitos.',
@@ -1247,9 +1267,48 @@ function setRole() {
   // v7: the sales forms carry their own date + TPP # and their own "went well", so the shared ones hide
   document.getElementById('evtQs').style.display = r === 'Sales' ? 'none' : '';
   document.getElementById('s-how').style.display = r === 'Sales' ? 'none' : '';
+  // v12: Leadership = service rating + one long QC notes box, nothing else
+  document.getElementById('leaderQs').style.display = r === 'Leadership' ? '' : 'none';
+  document.getElementById('notesQs').style.display = r === 'Leadership' ? 'none' : '';
   salesFormToggle();
   photoRule();
   trainerCheckSoon();   // v9: the training section is Chef-only, and only for a confirmed trainer
+  leaderCheckSoon();    // v12: Leadership is allowlisted by email
+}
+
+/* ---------------- v12: Leadership (allowlisted by email) ----------------
+   Same shape as the trainer check: the page holds no list, it asks the server yes/no for the typed email.
+   The server refuses a Leadership report from any other email anyway; this only explains it up front. */
+var LEAD = { cache: {}, timer: null };
+function leaderCheckSoon() { clearTimeout(LEAD.timer); LEAD.timer = setTimeout(runLeaderCheck, 300); }
+function runLeaderCheck() {
+  var st = document.getElementById('leaderStatus'), em = trainerEmail();
+  if (val('role') !== 'Leadership') { st.style.display = 'none'; return; }
+  st.style.display = '';
+  if (!/^[^@\s]+@[^@\s]+$/.test(em)) { st.textContent = t('Leadership: enter your work email above.'); return; }
+  if (LEAD.cache.hasOwnProperty(em)) return leaderStatus(em);
+  st.textContent = t('Checking…');
+  fetchCheck({ leaderCheck: em }, function (res) {
+    if (res && res.ok) LEAD.cache[em] = res.leader === true;
+    if (trainerEmail() === em) leaderStatus(em);
+  }, function () { if (trainerEmail() === em) document.getElementById('leaderStatus').textContent = t('Could not check the Leadership list — try again.'); });
+}
+function leaderStatus(em) {
+  document.getElementById('leaderStatus').textContent = LEAD.cache[em]
+    ? t('Leadership: confirmed.') : t('Leadership: this email is not on the Leadership list.');
+}
+function leaderOk() { return LEAD.cache[trainerEmail()] === true; }
+function fetchCheck(body, done, fail) {
+  try {
+    if (window.google && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(done).withFailureHandler(fail).leaderCheck(body.leaderCheck);
+      return;
+    }
+    fetch(ENDPOINT, { method: 'POST', credentials: 'omit',
+                      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function (r) { if (!r.ok) throw new Error('the server returned ' + r.status); return r.json(); })
+      .then(done, fail);
+  } catch (e) { fail(e); }
 }
 
 /* ---------------- v9: training shift (assigned trainers only) ----------------
@@ -1313,7 +1372,7 @@ function photoRule() {
   var req = photoRequired();
   [].slice.call(document.querySelectorAll('#items .picLabel')).forEach(function (l) { l.classList.toggle('req', req); });
   [].slice.call(document.querySelectorAll('#items .picHint')).forEach(function (p) {
-    p.textContent = t(req ? 'Required. Take it on your phone — it uploads straight from here.'
+    p.textContent = t(req ? 'Required (not if the item was missing entirely). Take it on your phone — it uploads straight from here.'
                           : 'Optional for sales. If you have one, it uploads straight from here.');
   });
 }
@@ -1569,6 +1628,10 @@ function sendReport() {
   if (role !== 'Sales') {   // sales don't see load-in, so the service rating is not asked of them
     if (!radio('service')) return msg('err', 'Please rate how service went.');
   }
+  if (role === 'Leadership') {   // v12: allowlisted, and the notes are the whole report
+    if (!leaderOk()) return msg('err', 'Leadership: this email is not on the Leadership list.');
+    if (!val('qcNotes')) return msg('err', 'Leadership: write your QC notes.');
+  }
 
   /* ---- sales validation (v7): only dates and TPP #s are required ---- */
   if (role === 'Sales') {
@@ -1716,7 +1779,9 @@ function sendReport() {
       return msg('err', 'Item ' + n + ': give the temperature reading in °F.');
     if (!b.querySelector('.sev').value)         return msg('err', 'Item ' + n + ': choose how bad it was.');
     if (!b.querySelector('.what').value.trim()) return msg('err', 'Item ' + n + ': say what happened.');
-    if (photoRequired() && !b.querySelector('.pic').files[0]) return msg('err', 'Item ' + n + ': a photo is required.');
+    // v12: nothing to photograph when the ONLY problem is that the item never came
+    var onlyMissing = probs.length === 1 && probs[0].value === 'Missing entirely';
+    if (photoRequired() && !onlyMissing && !b.querySelector('.pic').files[0]) return msg('err', 'Item ' + n + ': a photo is required.');
     if (b.querySelector('.pic')._blank) return msg('err', 'Item ' + n + ': that photo looks blank. Retake it.');
   }
   var many = ['stPhotos', 'sePhotos'].map(function (id) { return document.getElementById(id); });
@@ -1762,7 +1827,8 @@ function sendReport() {
   msg('ok', 'Uploading…');
 
   // "How it went" is hidden for Sales — never send what a hidden box may still hold
-  var wentWell = role === 'Sales' ? '' : val('wentWell'), otherNotes = role === 'Sales' ? '' : val('otherNotes');
+  var wentWell = role === 'Sales' || role === 'Leadership' ? '' : val('wentWell'),
+      otherNotes = role === 'Sales' ? '' : role === 'Leadership' ? val('qcNotes') : val('otherNotes');
 
   Promise.all([Promise.all(blocks.map(function (b) {
     var file = b.querySelector('.pic').files[0];
