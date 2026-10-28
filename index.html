@@ -273,7 +273,7 @@
 
       <div id="crewQs"><!-- v8 (2026-10-22): Chef + Captain only -->
       <label>Plated dinner: minutes from first plate out to last plate down</label>
-      <input type="number" id="plateUpMinutes" min="1" max="180" step="1" inputmode="numeric" placeholder="25">
+      <input type="number" id="plateUpMinutes" min="5" max="180" step="1" inputmode="numeric" placeholder="25">
       <p class="hint">Leave blank if it wasn't a plated dinner.</p>
 
       <div class="q">
@@ -1039,7 +1039,7 @@ var ES = {
   'Plated dinner: minutes from first plate out to last plate down': 'Cena emplatada: minutos desde que sale el primer plato hasta que el último está en la mesa',
   "Leave blank if it wasn't a plated dinner.": 'Déjalo en blanco si no fue una cena emplatada.',
   'Any photos worth sharing? (optional, up to 3)': '¿Alguna foto que valga la pena compartir? (opcional, máximo 3)',
-  'Plate-up time should be a whole number of minutes, 1 to 180.': 'El tiempo de emplatado debe ser un número entero de minutos, del 1 al 180.',
+  'Plate-up time should be 5 to 180 minutes. Leave it blank if it was not a plated dinner.': 'El tiempo de emplatado debe ser de 5 a 180 minutos. Déjalo en blanco si no fue una cena emplatada.',
   'Up to 3 photos — pick 3 or fewer.': 'Máximo 3 fotos — elige 3 o menos.',
   'Captain — the room': 'Capitán — el salón',
   'Did you check in with the client or host before leaving?': '¿Hablaste con el cliente o anfitrión antes de irte?',
@@ -1890,8 +1890,8 @@ function sendReport() {
     plateUp = val('plateUpMinutes');
     // badInput = the box holds something that is not a number (the browser then reports value as '')
     if ((pu.validity && pu.validity.badInput) ||
-        (plateUp && !(/^[0-9]+$/.test(plateUp) && +plateUp >= 1 && +plateUp <= 180)))
-      return msg('err', 'Plate-up time should be a whole number of minutes, 1 to 180.');
+        (plateUp && !(/^[0-9]+$/.test(plateUp) && +plateUp >= 5 && +plateUp <= 180)))   // v16: floor 5
+      return msg('err', 'Plate-up time should be 5 to 180 minutes. Leave it blank if it was not a plated dinner.');
     var cp = document.getElementById('crewPhotos');
     crewFiles = [].slice.call(cp.files || []);
     if (crewFiles.length > (+cp.getAttribute('data-max') || 3)) return msg('err', 'Up to 3 photos — pick 3 or fewer.');
