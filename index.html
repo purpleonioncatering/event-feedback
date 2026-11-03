@@ -132,6 +132,16 @@
     <fieldset id="s-event">
       <legend>The event</legend>
       <div id="evtQs"><!-- hidden for Sales: their forms ask for their own date + TPP # -->
+      <!-- v18: pick the event from the last two weeks of Nowsta events; the typed boxes only show
+           when the list could not load (the server then accepts the number as UNVERIFIED) -->
+      <div id="evtPickQ" style="display:none">
+      <label class="req">Your event</label>
+      <select id="eventPick" onchange="pickEvent()">
+        <option value="">Choose&hellip;</option>
+      </select>
+      <p class="hint">Events from the last two weeks. Not on the list? Email kitchen@purpleonioncatering.com.</p>
+      </div>
+      <div id="evtTypeQ">
       <label class="req">Event number</label>
       <input type="text" id="eventNumber" inputmode="numeric" pattern="[0-9]{5}"
              placeholder="62977" required>
@@ -139,6 +149,7 @@
 
       <label class="req">Event date</label>
       <input type="date" id="eventDate" required>
+      </div>
       </div>
 
       <label class="req">Your name</label>
@@ -251,6 +262,12 @@
                 placeholder="What you saw, what you fixed or coached, and what needs to change."></textarea>
       <p class="hint">Write it clean: what happened, what you did, what needs to change.</p>
       <p class="count"></p>
+
+      <!-- v18: photos with captions; the caption becomes the link text in the report -->
+      <label>Photos (optional, up to 10)</label>
+      <div id="leadPhotos"></div>
+      <button type="button" class="add" id="leadPhotoAdd" onclick="addLeadPhoto()">+ Add a photo</button>
+      <p class="hint">Give each photo a short caption, like "crab cake, scorched side". The caption becomes the link in the report.</p>
       </div>
 
       <div id="notesQs">
@@ -1280,7 +1297,18 @@ var ES = {
   'Training: "Revisit next time" is 200 characters at most.': 'Entrenamiento: "Repasar la próxima vez" tiene un máximo de 200 caracteres.',
   'Training: only the Chef role can log a training shift.': 'Entrenamiento: solo el puesto de Chef puede reportar un turno de entrenamiento.',
   'Training: only an assigned trainer on the Trainers list can log a training shift.': 'Entrenamiento: solo un entrenador asignado de la lista de entrenadores puede reportar un turno de entrenamiento.',
-  'Training: that trainee is not on the active trainee list.': 'Entrenamiento: esa persona no está en la lista activa de entrenamiento.'
+  'Training: that trainee is not on the active trainee list.': 'Entrenamiento: esa persona no está en la lista activa de entrenamiento.',
+  // v18
+  'Your event': 'Tu evento',
+  'Events from the last two weeks. Not on the list? Email kitchen@purpleonioncatering.com.': 'Eventos de las últimas dos semanas. ¿No está en la lista? Escribe a kitchen@purpleonioncatering.com.',
+  'Please choose your event.': 'Escoge tu evento.',
+  'Photos (optional, up to 10)': 'Fotos (opcional, hasta 10)',
+  '+ Add a photo': '+ Agregar una foto',
+  'Give each photo a short caption, like "crab cake, scorched side". The caption becomes the link in the report.': 'Ponle a cada foto una descripción corta, como "crab cake, quemado de un lado". La descripción es el enlace en el reporte.',
+  'What the photo shows': 'Qué muestra la foto',
+  'Leadership: every photo needs a caption.': 'Liderazgo: cada foto necesita una descripción.',
+  'Leadership: 10 photos at most.': 'Liderazgo: máximo 10 fotos.',
+  'Leadership: a photo looks blank. Retake it.': 'Liderazgo: una foto parece en blanco. Tómala otra vez.'
 };
 var EN = {};
 Object.keys(ES).forEach(function (k) { EN[ES[k]] = k; });
@@ -1658,6 +1686,66 @@ function blankCheck(input) {
 // Off Google's servers the report goes out as a cookie-less POST, which a browser signed into
 // several Google accounts cannot break; on the Apps Script page itself, google.script.run is used.
 var ENDPOINT = 'https://script.google.com/macros/s/AKfycbzJ51Q-K4Bfar4d4WNdeuAk1daGHN4NJbiWnENtBXiKo1C3WrvJ-jcjK_D7iF5BQRH3/exec';
+
+/* ---------------- v18: event pick-list (recent Nowsta events) ----------------
+   A fresh list swaps the typed Event # / date for one dropdown that fills both. A missing or stale list
+   (or a failed fetch) leaves the typed boxes up; the server then accepts the number as UNVERIFIED. */
+var EVT = { list: [] };
+function loadEvents() {
+  var done = function (res) {
+    if (!res || !res.ok || !res.fresh || !(res.events || []).length) return;
+    EVT.list = res.events;
+    var sel = document.getElementById('eventPick'), D = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    res.events.forEach(function (e) {
+      var p = e.date.split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]);
+      var o = document.createElement('option');
+      o.value = e.num;
+      o.textContent = D[d.getDay()] + ' ' + (+p[1]) + '/' + (+p[2]) + '  ·  #' + e.num + '  ·  ' + e.name;
+      sel.appendChild(o);
+    });
+    document.getElementById('evtPickQ').style.display = '';
+    document.getElementById('evtTypeQ').style.display = 'none';
+  };
+  try {
+    if (window.google && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(done).withFailureHandler(function () {}).eventList();
+      return;
+    }
+    fetch(ENDPOINT, { method: 'POST', credentials: 'omit',
+                      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ eventList: true }) })
+      .then(function (r) { return r.json(); }).then(done, function () {});
+  } catch (e) {}
+}
+function eventsPicking() { return EVT.list.length > 0; }
+function pickEvent() {
+  var num = val('eventPick'), e = EVT.list.filter(function (x) { return x.num === num; })[0];
+  document.getElementById('eventNumber').value = e ? e.num : '';
+  document.getElementById('eventDate').value = e ? e.date : '';
+}
+
+/* ---------------- v18: Leadership photos, one caption each ---------------- */
+var LEAD_PHOTO_MAX = 10;
+function addLeadPhoto() {
+  var box = document.getElementById('leadPhotos');
+  if (box.children.length >= LEAD_PHOTO_MAX) return;
+  var row = document.createElement('div');
+  row.className = 'leadPhoto q';
+  row.innerHTML = '<input type="file" class="lpFile" accept="image/*" onchange="blankCheck(this)">' +
+    '<input type="text" class="lpCap" maxlength="80" placeholder="' + t('What the photo shows') + '">' +
+    '<button type="button" class="rm" onclick="this.closest(\'.leadPhoto\').remove(); leadPhotoBtn();">' + L('remove', 'quitar') + '</button>';
+  box.appendChild(row);
+  leadPhotoBtn();
+}
+function leadPhotoBtn() {
+  document.getElementById('leadPhotoAdd').style.display =
+    document.getElementById('leadPhotos').children.length >= LEAD_PHOTO_MAX ? 'none' : '';
+}
+function leadPhotoRows() {
+  return [].slice.call(document.querySelectorAll('#leadPhotos .leadPhoto')).map(function (r) {
+    var f = r.querySelector('.lpFile');
+    return { file: f.files && f.files[0], caption: r.querySelector('.lpCap').value.trim(), blank: !!f._blank };
+  }).filter(function (r) { return r.file; });
+}
 function send(payload, done, fail) {
   if (window.google && google.script && google.script.run) {
     google.script.run.withSuccessHandler(done).withFailureHandler(fail).submitReport(payload);
@@ -1687,6 +1775,7 @@ function sendReport() {
   /* ---- shared validation (Sales skips Event # / date: their form asks its own) ---- */
   var role = val('role'), captain = null, bar = null, salesTasting = null, salesEvent = null;
   var evNum = val('eventNumber'), evDate = val('eventDate'), photoFiles = [];
+  if (role && role !== 'Sales' && eventsPicking() && !val('eventPick')) return msg('err', 'Please choose your event.');
   var need = [['eventNumber', 'Event number'], ['eventDate', 'Event date'],
               ['name', 'Your name'], ['role', 'Your role']];
   for (var i = 0; i < need.length; i++) {
@@ -1711,7 +1800,12 @@ function sendReport() {
   if (role === 'Leadership') {   // v12: allowlisted, and the notes are the whole report
     if (!leaderOk()) return msg('err', 'Leadership: this email is not on the Leadership list.');
     if (!val('qcNotes')) return msg('err', 'Leadership: write your QC notes.');
+    var leadRows = leadPhotoRows();   // v18
+    if (leadRows.length > LEAD_PHOTO_MAX) return msg('err', 'Leadership: 10 photos at most.');
+    if (leadRows.some(function (r) { return !r.caption; })) return msg('err', 'Leadership: every photo needs a caption.');
+    if (leadRows.some(function (r) { return r.blank; })) return msg('err', 'Leadership: a photo looks blank. Retake it.');
   }
+  var leadFiles = role === 'Leadership' ? leadPhotoRows() : [];
 
   /* ---- sales validation (v7): only dates and TPP #s are required ---- */
   if (role === 'Sales') {
@@ -1936,8 +2030,11 @@ function sendReport() {
         photo:    photo
       };
     });
-  })), Promise.all(photoFiles.map(shrink)), Promise.all(crewFiles.map(shrink))]).then(function (done) {
-    var items = done[0], salesPhotos = done[1], crewPhotos = done[2];
+  })), Promise.all(photoFiles.map(shrink)), Promise.all(crewFiles.map(shrink)),
+      Promise.all(leadFiles.map(function (r) {
+        return shrink(r.file).then(function (p) { p.caption = r.caption; return p; });
+      }))]).then(function (done) {
+    var items = done[0], salesPhotos = done[1], crewPhotos = done[2], leaderPhotos = done[3];
     var payload = {
       eventNumber: evNum, eventDate: evDate, name: val('name'),
       email: val('email'), role: role,
@@ -1946,7 +2043,7 @@ function sendReport() {
       service: radio('service'), wentWell: wentWell, otherNotes: otherNotes,
       captain: captain, bar: bar, salesTasting: salesTasting, salesEvent: salesEvent,
       salesPhotos: salesPhotos, items: items, lang: LANG,
-      plateUpMinutes: plateUp, crewPhotos: crewPhotos
+      plateUpMinutes: plateUp, crewPhotos: crewPhotos, leaderPhotos: leaderPhotos
     };
     if (training) payload.training = training;   // v9: omitted entirely when the section is not showing
     send(payload, function (res) {
@@ -1972,6 +2069,7 @@ function sendReport() {
 
 /* start in the language this phone used last time */
 try { if (localStorage.getItem('po_feedback_lang') === 'es') { LANG = 'es'; applyLang(); } } catch (e) {}
+loadEvents();   // v18
 
 </script>
 </body>
