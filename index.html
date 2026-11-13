@@ -997,8 +997,10 @@
     <button type="button" class="rm" onclick="this.closest('.item').remove(); renumber();">remove</button>
     <div class="inner">
       <label class="req">Which menu item?</label>
+      <!-- v20: the event's booked dishes when its menu is known; the typed box is the fallback -->
+      <select class="menuPick" style="display:none" onchange="menuPickToggle(this)"></select>
       <input type="text" class="menuItem" placeholder="Exact name from the production worksheet">
-      <p class="hint">The exact name is what lets us trace it back to the recipe.</p>
+      <p class="hint menuHint">The exact name is what lets us trace it back to the recipe.</p>
 
       <label class="req">What was the problem?</label>
       <div class="checks probs">
@@ -1363,6 +1365,7 @@ var ES = {
   'What time did the tasting start and end? (optional)': '¿A qué hora empezó y terminó la degustación? (opcional)',
   'Apps 1 out': 'Salieron aperitivos 1', 'Apps 2 out': 'Salieron aperitivos 2', 'Salads out': 'Salieron ensaladas',
   'Entrées 1 out': 'Salieron platos fuertes 1', 'Entrées 2 out': 'Salieron platos fuertes 2', 'Dessert out': 'Salió postre',
+  'Not on the list': 'No está en la lista',
   'Not ordered': 'No se pidió', 'Product nobody bought. Example: popped sorghum.': 'Producto que nadie compró. Ejemplo: sorgo inflado.',
   'Missing at setup': 'Faltó al montar',
   'Ordered or made, but not on the tasting rack when you set up.': 'Se pidió o se hizo, pero no estaba en el rack de degustación al montar.',
@@ -1435,6 +1438,7 @@ function setRole() {
   document.getElementById('notesQs').style.display = r === 'Leadership' ? 'none' : '';
   salesFormToggle();
   leaderFormToggle();   // v19: also decides whether the event picker + service rating show
+  refreshMenuPicks();   // v20: Sales type their items; everyone else picks from the event's menu
   photoRule();
   trainerCheckSoon();   // v9: the training section is Chef-only, and only for a confirmed trainer
   leaderCheckSoon();    // v12: Leadership is allowlisted by email
@@ -1616,8 +1620,42 @@ function addItem() {
   var list = document.getElementById('items');
   list.appendChild(document.getElementById('tpl').content.cloneNode(true));
   translateTree(list.lastElementChild);
+  fillMenuPick(list.lastElementChild);   // v20
   renumber();
   photoRule();
+}
+
+/* v20: the chosen event's booked dishes as a dropdown, one dish per item, so names match the recipe and Trends
+   can count them. "Not on the list" brings back the typed box. Sales (no event pick) always type. */
+var MENU_OTHER = '__other';
+function eventMenuItems() {
+  if (val('role') === 'Sales' || leaderTasting()) return [];
+  var num = val('eventNumber'), e = EVT.list.filter(function (x) { return x.num === num; })[0];
+  return e && e.items ? e.items : [];
+}
+function fillMenuPick(b) {
+  var items = eventMenuItems(), sel = b.querySelector('.menuPick'), txt = b.querySelector('.menuItem');
+  var keep = sel.value;
+  sel.innerHTML = '';
+  if (!items.length) { sel.style.display = 'none'; txt.style.display = ''; b.querySelector('.menuHint').style.display = ''; return; }
+  var add = function (v, label) { var o = document.createElement('option'); o.value = v; o.textContent = label; sel.appendChild(o); };
+  add('', t('Choose…'));
+  items.forEach(function (n) { add(n, n); });
+  add(MENU_OTHER, t('Not on the list'));
+  sel.value = items.indexOf(keep) !== -1 || keep === MENU_OTHER ? keep : '';
+  sel.style.display = '';
+  b.querySelector('.menuHint').style.display = 'none';
+  menuPickToggle(sel);
+}
+function menuPickToggle(sel) {
+  var b = sel.closest('.item');
+  b.querySelector('.menuItem').style.display = sel.style.display !== 'none' && sel.value !== MENU_OTHER ? 'none' : '';
+}
+function refreshMenuPicks() { [].slice.call(document.querySelectorAll('#items .item')).forEach(fillMenuPick); }
+function menuItemOf(b) {
+  var sel = b.querySelector('.menuPick');
+  if (sel && sel.style.display !== 'none' && sel.value !== MENU_OTHER) return sel.value;
+  return b.querySelector('.menuItem').value.trim();
 }
 
 // Downscale before upload. A raw phone photo is 3-5MB and base64 inflates it by a third;
@@ -1789,6 +1827,7 @@ function pickEvent() {
   var num = val('eventPick'), e = EVT.list.filter(function (x) { return x.num === num; })[0];
   document.getElementById('eventNumber').value = e ? e.num : '';
   document.getElementById('eventDate').value = e ? e.date : '';
+  refreshMenuPicks();   // v20
 }
 
 /* ---------------- v18: Leadership photos, one caption each ---------------- */
@@ -2040,7 +2079,7 @@ function sendReport() {
   var blocks = vis('s-items') ? [].slice.call(document.querySelectorAll('#items .item')) : [];
   for (var k = 0; k < blocks.length; k++) {
     var b = blocks[k], n = k + 1;
-    if (!b.querySelector('.menuItem').value.trim()) return msg('err', 'Item ' + n + ': name the menu item.');
+    if (!menuItemOf(b)) return msg('err', 'Item ' + n + ': name the menu item.');
     var probs = [].slice.call(b.querySelectorAll('.probs input:checked'));
     if (!probs.length) return msg('err', 'Item ' + n + ': pick at least one problem.');
     var isTemp = probs.some(function (p) { return p.value === 'Temperature'; });
@@ -2103,7 +2142,7 @@ function sendReport() {
     var file = b.querySelector('.pic').files[0];
     return (file ? shrink(file) : Promise.resolve(null)).then(function (photo) {
       return {
-        menuItem: b.querySelector('.menuItem').value.trim(),
+        menuItem: menuItemOf(b),
         problems: [].slice.call(b.querySelectorAll('.probs input:checked')).map(function (c) { return c.value; }),
         tempF:    b.querySelector('.tempF').value,
         severity: b.querySelector('.sev').value,
