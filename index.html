@@ -171,6 +171,52 @@
       <p class="hint" id="leaderStatus" style="display:none"></p>
     </fieldset>
 
+    <!-- ============ v19: LEADERSHIP picks Event or Tasting ============ -->
+    <fieldset class="roleonly" id="s-leaderForm">
+      <legend>Leadership &mdash; which report?</legend>
+      <label class="req">Which report are you filing?</label>
+      <div class="choices">
+        <label><input type="radio" name="leaderForm" value="Event" checked onchange="leaderFormToggle()">Event report</label>
+        <label><input type="radio" name="leaderForm" value="Tasting" onchange="leaderFormToggle()">Tasting feedback</label>
+      </div>
+    </fieldset>
+
+    <fieldset class="roleonly" id="s-leaderTasting">
+      <legend>Tasting feedback</legend>
+      <label class="req">Tasting date</label>
+      <input type="date" id="ltDate">
+
+      <label class="req">Tasting TPP #</label>
+      <input type="text" id="ltTpp" inputmode="numeric" pattern="[0-9]{5}" placeholder="66241">
+
+      <label>Course timings (optional)</label>
+      <p class="hint">Fill in whatever you timed: start, each course out, end.</p>
+      <div class="choices">
+        <label>Start <input type="time" id="ltStart"></label>
+        <label>Apps 1 out <input type="time" id="ltApps1"></label>
+        <label>Apps 2 out <input type="time" id="ltApps2"></label>
+        <label>Salads out <input type="time" id="ltSalads"></label>
+        <label>Entrées 1 out <input type="time" id="ltEntrees1"></label>
+        <label>Entrées 2 out <input type="time" id="ltEntrees2"></label>
+        <label>Dessert out <input type="time" id="ltDessert"></label>
+        <label>End <input type="time" id="ltEnd"></label>
+      </div>
+
+      <div class="q">
+        <label>Not ordered</label>
+        <p class="hint">Product nobody bought. Example: popped sorghum.</p>
+        <textarea id="ltNotOrdered" rows="2" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
+      <div class="q">
+        <label>Missing at setup</label>
+        <p class="hint">Ordered or made, but not on the tasting rack when you set up.</p>
+        <textarea id="ltMissing" rows="2" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+    </fieldset>
+
     <fieldset id="s-how">
       <legend>How it went</legend>
 
@@ -647,7 +693,7 @@
       <input type="text" id="stChef" maxlength="120">
 
       <!-- v14: tap-to-answer facts, so tastings can be counted (timing, pace, ratings, portions) -->
-      <label class="req">What time did the tasting start and end?</label>
+      <label>What time did the tasting start and end? (optional)</label>
       <div class="choices">
         <label>Start <input type="time" id="stStart"></label>
         <label>End <input type="time" id="stEnd"></label>
@@ -1308,7 +1354,19 @@ var ES = {
   'What the photo shows': 'Qué muestra la foto',
   'Leadership: every photo needs a caption.': 'Liderazgo: cada foto necesita una descripción.',
   'Leadership: 10 photos at most.': 'Liderazgo: máximo 10 fotos.',
-  'Leadership: a photo looks blank. Retake it.': 'Liderazgo: una foto parece en blanco. Tómala otra vez.'
+  'Leadership: a photo looks blank. Retake it.': 'Liderazgo: una foto parece en blanco. Tómala otra vez.',
+  // v19 — Leadership tasting report
+  'Leadership — which report?': 'Liderazgo — ¿qué reporte?', 'Which report are you filing?': '¿Qué reporte vas a enviar?',
+  'Event report': 'Reporte del evento', 'Tasting date': 'Fecha de la degustación', 'Tasting TPP #': '# de TPP de la degustación',
+  'Course timings (optional)': 'Horarios de los platos (opcional)',
+  'Fill in whatever you timed: start, each course out, end.': 'Pon lo que cronometraste: inicio, cada plato, fin.',
+  'What time did the tasting start and end? (optional)': '¿A qué hora empezó y terminó la degustación? (opcional)',
+  'Apps 1 out': 'Salieron aperitivos 1', 'Apps 2 out': 'Salieron aperitivos 2', 'Salads out': 'Salieron ensaladas',
+  'Entrées 1 out': 'Salieron platos fuertes 1', 'Entrées 2 out': 'Salieron platos fuertes 2', 'Dessert out': 'Salió postre',
+  'Not ordered': 'No se pidió', 'Product nobody bought. Example: popped sorghum.': 'Producto que nadie compró. Ejemplo: sorgo inflado.',
+  'Missing at setup': 'Faltó al montar',
+  'Ordered or made, but not on the tasting rack when you set up.': 'Se pidió o se hizo, pero no estaba en el rack de degustación al montar.',
+  'Tasting TPP # should be five digits.': 'El # de TPP de la degustación debe tener cinco dígitos.'
 };
 var EN = {};
 Object.keys(ES).forEach(function (k) { EN[ES[k]] = k; });
@@ -1367,17 +1425,16 @@ function setRole() {
   show('s-bar',     r === 'Bartender');
   show('s-sales',   r === 'Sales');
   show('s-items',   r === 'Chef' || r === 'Captain' || r === 'Sales');
-  document.getElementById('opsQs').style.display = r === 'Sales' ? 'none' : '';
   document.getElementById('chefQs').style.display = r === 'Chef' ? '' : 'none';
   // v8: plate-up time + photos worth sharing — the two people who watch the food go out
   document.getElementById('crewQs').style.display = r === 'Chef' || r === 'Captain' ? '' : 'none';
   // v7: the sales forms carry their own date + TPP # and their own "went well", so the shared ones hide
-  document.getElementById('evtQs').style.display = r === 'Sales' ? 'none' : '';
   document.getElementById('s-how').style.display = r === 'Sales' ? 'none' : '';
   // v12: Leadership = service rating + one long QC notes box, nothing else
   document.getElementById('leaderQs').style.display = r === 'Leadership' ? '' : 'none';
   document.getElementById('notesQs').style.display = r === 'Leadership' ? 'none' : '';
   salesFormToggle();
+  leaderFormToggle();   // v19: also decides whether the event picker + service rating show
   photoRule();
   trainerCheckSoon();   // v9: the training section is Chef-only, and only for a confirmed trainer
   leaderCheckSoon();    // v12: Leadership is allowlisted by email
@@ -1472,6 +1529,17 @@ function salesForm() { return val('role') === 'Sales' ? radio('salesForm') : '';
 function salesFormToggle() {
   show('s-salesTasting', salesForm() === 'Tasting');
   show('s-salesEvent',   salesForm() === 'Event');
+}
+/* v19: Leadership picks Event or Tasting. A tasting is not in Nowsta, so it hides the event picker
+   (the tasting TPP # is typed) and the service rating; the QC notes + photos stay. */
+function leaderForm() { return val('role') === 'Leadership' ? (radio('leaderForm') || 'Event') : ''; }   // Event is the default
+function leaderTasting() { return leaderForm() === 'Tasting'; }
+function leaderFormToggle() {
+  var r = val('role'), lt = leaderTasting();
+  show('s-leaderForm', r === 'Leadership');
+  show('s-leaderTasting', lt);
+  document.getElementById('evtQs').style.display = r === 'Sales' || lt ? 'none' : '';
+  document.getElementById('opsQs').style.display = r === 'Sales' || lt ? 'none' : '';
 }
 /* Item photos: required from the people handling the food, optional for sales. */
 function photoRequired() { return val('role') !== 'Sales'; }
@@ -1775,14 +1843,16 @@ function sendReport() {
   /* ---- shared validation (Sales skips Event # / date: their form asks its own) ---- */
   var role = val('role'), captain = null, bar = null, salesTasting = null, salesEvent = null;
   var evNum = val('eventNumber'), evDate = val('eventDate'), photoFiles = [];
-  if (role && role !== 'Sales' && eventsPicking() && !val('eventPick')) return msg('err', 'Please choose your event.');
+  // v19: Sales and a Leadership tasting report type their own TPP # + date instead of picking an event
+  var ownEvent = role === 'Sales' || leaderTasting();
+  if (role && !ownEvent && eventsPicking() && !val('eventPick')) return msg('err', 'Please choose your event.');
   var need = [['eventNumber', 'Event number'], ['eventDate', 'Event date'],
               ['name', 'Your name'], ['role', 'Your role']];
   for (var i = 0; i < need.length; i++) {
-    if (role === 'Sales' && (need[i][0] === 'eventNumber' || need[i][0] === 'eventDate')) continue;
+    if (ownEvent && (need[i][0] === 'eventNumber' || need[i][0] === 'eventDate')) continue;
     if (!val(need[i][0])) return msg('err', need[i][1] + ' is required.');
   }
-  if (role !== 'Sales' && !/^[0-9]{5}$/.test(evNum))
+  if (!ownEvent && !/^[0-9]{5}$/.test(evNum))
     return msg('err', 'Event number should be five digits.');
 
   if (role === 'Chef') {    // equipment + truck are chef-only (captains/bartenders can't answer them)
@@ -1794,8 +1864,20 @@ function sendReport() {
     if (radio('truckOnTime') === 'No' && !val('truckLateDetail'))
       return msg('err', 'Say how late the truck was and what happened.');
   }
-  if (role !== 'Sales') {   // sales don't see load-in, so the service rating is not asked of them
+  if (!ownEvent) {   // sales (and a tasting report) don't rate event service
     if (!radio('service')) return msg('err', 'Please rate how service went.');
+  }
+  var leaderTastingData = null;
+  if (leaderTasting()) {   // v19
+    if (!val('ltDate')) return msg('err', 'Please enter the tasting date.');
+    if (!/^[0-9]{5}$/.test(val('ltTpp'))) return msg('err', 'Tasting TPP # should be five digits.');
+    leaderTastingData = {
+      tastingDate: val('ltDate'), tastingTpp: val('ltTpp'), startTime: val('ltStart'), endTime: val('ltEnd'),
+      apps1Out: val('ltApps1'), apps2Out: val('ltApps2'), saladsOut: val('ltSalads'),
+      entrees1Out: val('ltEntrees1'), entrees2Out: val('ltEntrees2'), dessertOut: val('ltDessert'),
+      notOrdered: val('ltNotOrdered'), missingSetup: val('ltMissing')
+    };
+    evNum = leaderTastingData.tastingTpp; evDate = leaderTastingData.tastingDate;
   }
   if (role === 'Leadership') {   // v12: allowlisted, and the notes are the whole report
     if (!leaderOk()) return msg('err', 'Leadership: this email is not on the Leadership list.');
@@ -1817,7 +1899,6 @@ function sendReport() {
       // optional: a client who has not booked yet has no full-service event; if given it must still be 5 digits
       if (val('stFullTpp') && !/^[0-9]{5}$/.test(val('stFullTpp'))) return msg('err', 'Full-service event TPP # should be five digits.');
       // v14 — the tap-to-answer facts are required; the typed boxes stay optional
-      if (!val('stStart') || !val('stEnd')) return msg('err', 'Please enter the tasting start and end time.');
       if (!radio('stPace')) return msg('err', 'Please answer the pace question.');
       if (!radio('stAppsR') || !radio('stSaladR') || !radio('stEntreeR') || !radio('stDessertR'))
         return msg('err', 'Please rate every course (or pick N/A).');
@@ -2045,6 +2126,7 @@ function sendReport() {
       salesPhotos: salesPhotos, items: items, lang: LANG,
       plateUpMinutes: plateUp, crewPhotos: crewPhotos, leaderPhotos: leaderPhotos
     };
+    if (leaderTastingData) { payload.leaderTasting = leaderTastingData; payload.service = ''; }   // v19
     if (training) payload.training = training;   // v9: omitted entirely when the section is not showing
     send(payload, function (res) {
       btn.disabled = false; btn.textContent = t('Send report');
