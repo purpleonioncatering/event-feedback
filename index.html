@@ -199,6 +199,7 @@
         <label>Entrées 1 out <input type="time" id="ltEntrees1"></label>
         <label>Entrées 2 out <input type="time" id="ltEntrees2"></label>
         <label>Dessert out <input type="time" id="ltDessert"></label>
+        <label>Late night out <input type="time" id="ltLateNight"></label>
         <label>End <input type="time" id="ltEnd"></label>
       </div>
 
@@ -776,6 +777,21 @@
         <p class="count"></p>
       </div>
 
+      <div class="q">
+        <label>If there were late night bites, how did the client rate them? (1 = Poor, 5 = Excellent)</label>
+        <div class="choices scale">
+        <label><input type="radio" name="stLateR" value="1">1</label>
+        <label><input type="radio" name="stLateR" value="2">2</label>
+        <label><input type="radio" name="stLateR" value="3">3</label>
+        <label><input type="radio" name="stLateR" value="4">4</label>
+        <label><input type="radio" name="stLateR" value="5">5</label>
+        <label><input type="radio" name="stLateR" value="N/A">N/A</label>
+        </div>
+        <label>Comment on the late night bites (optional)</label>
+        <textarea id="stLate" rows="3" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
+
       <label class="req">How were the portions?</label>
       <div class="choices">
         <label><input type="radio" name="stPortions" value="Right">Right</label>
@@ -1057,6 +1073,8 @@ var ES = {
   'How did the client rate the salad? (1 = Poor, 5 = Excellent)': '¿Cómo calificó el cliente la ensalada? (1 = Malo, 5 = Excelente)',
   'How did the client rate the entrée? (1 = Poor, 5 = Excellent)': '¿Cómo calificó el cliente el plato principal? (1 = Malo, 5 = Excelente)',
   'How did the client rate the dessert? (1 = Poor, 5 = Excellent)': '¿Cómo calificó el cliente el postre? (1 = Malo, 5 = Excelente)',
+  'If there were late night bites, how did the client rate them? (1 = Poor, 5 = Excellent)': 'Si hubo bocadillos de medianoche, ¿cómo los calificó el cliente? (1 = Malo, 5 = Excelente)',
+  'Comment on the late night bites (optional)': 'Comentario sobre los bocadillos de medianoche (opcional)',
   'Comment on the appetizers (optional)': 'Comentario sobre los aperitivos (opcional)', 'Comment on the salad (optional)': 'Comentario sobre la ensalada (opcional)',
   'Comment on the entrée (optional)': 'Comentario sobre el plato principal (opcional)', 'Comment on the dessert (optional)': 'Comentario sobre el postre (opcional)',
   'How were the portions?': '¿Cómo estuvieron las porciones?', 'Right': 'Bien', 'Too much': 'Demasiado', 'Too little': 'Muy poco',
@@ -1364,7 +1382,7 @@ var ES = {
   'Fill in whatever you timed: start, each course out, end.': 'Pon lo que cronometraste: inicio, cada plato, fin.',
   'What time did the tasting start and end? (optional)': '¿A qué hora empezó y terminó la degustación? (opcional)',
   'Apps 1 out': 'Salieron aperitivos 1', 'Apps 2 out': 'Salieron aperitivos 2', 'Salads out': 'Salieron ensaladas',
-  'Entrées 1 out': 'Salieron platos fuertes 1', 'Entrées 2 out': 'Salieron platos fuertes 2', 'Dessert out': 'Salió postre',
+  'Entrées 1 out': 'Salieron platos fuertes 1', 'Entrées 2 out': 'Salieron platos fuertes 2', 'Dessert out': 'Salió postre', 'Late night out': 'Salieron bocadillos de medianoche',
   'Not on the list': 'No está en la lista',
   'Not ordered': 'No se pidió', 'Product nobody bought. Example: popped sorghum.': 'Producto que nadie compró. Ejemplo: sorgo inflado.',
   'Missing at setup': 'Faltó al montar',
@@ -1913,7 +1931,7 @@ function sendReport() {
     leaderTastingData = {
       tastingDate: val('ltDate'), tastingTpp: val('ltTpp'), startTime: val('ltStart'), endTime: val('ltEnd'),
       apps1Out: val('ltApps1'), apps2Out: val('ltApps2'), saladsOut: val('ltSalads'),
-      entrees1Out: val('ltEntrees1'), entrees2Out: val('ltEntrees2'), dessertOut: val('ltDessert'),
+      entrees1Out: val('ltEntrees1'), entrees2Out: val('ltEntrees2'), dessertOut: val('ltDessert'), lateNightOut: val('ltLateNight'),
       notOrdered: val('ltNotOrdered'), missingSetup: val('ltMissing')
     };
     evNum = leaderTastingData.tastingTpp; evDate = leaderTastingData.tastingDate;
@@ -1949,14 +1967,14 @@ function sendReport() {
         tastingDate: val('stDate'), tastingTpp: val('stTpp'), fullServiceTpp: val('stFullTpp'),
         serviceStyle: val('stStyle'), tastingChef: val('stChef'),
         wentWell: val('stWentWell'), appetizers: val('stApps'), salad: val('stSalad'),
-        entree: val('stEntree'), dessert: val('stDessert'), otherFood: '',
+        entree: val('stEntree'), dessert: val('stDessert'), lateNight: val('stLate'), otherFood: '',
         clientExperience: val('stExperience'), likelyToBook: radio('stBook'), favoriteItem: val('stFavorite'),
         concerns: val('stConcerns'), rating: radio('stRating'), additional: '',
         culinaryComments: val('stCulinary'),
         // v14
         startTime: val('stStart'), endTime: val('stEnd'), pace: radio('stPace'),
         appsRating: radio('stAppsR'), saladRating: radio('stSaladR'), entreeRating: radio('stEntreeR'),
-        dessertRating: radio('stDessertR'), portions: radio('stPortions'), matched: radio('stMatched'),
+        dessertRating: radio('stDessertR'), lateNightRating: radio('stLateR'), portions: radio('stPortions'), matched: radio('stMatched'),
         matchedDetail: radio('stMatched') === 'Yes' ? '' : val('stMatchedDetail')
       };
       evNum = salesTasting.tastingTpp; evDate = salesTasting.tastingDate;
