@@ -216,6 +216,13 @@
         <textarea id="ltMissing" rows="2" maxlength="1000" oninput="cnt(this)"></textarea>
         <p class="count"></p>
       </div>
+
+      <div class="q">
+        <label>Prepped wrong / remade</label>
+        <p class="hint">On the rack, but prepped wrong or had to be remade. One item per line.</p>
+        <textarea id="ltRemade" rows="2" maxlength="1000" oninput="cnt(this)"></textarea>
+        <p class="count"></p>
+      </div>
     </fieldset>
 
     <fieldset id="s-how">
@@ -1387,6 +1394,8 @@ var ES = {
   'Not ordered': 'No se pidió', 'Product nobody bought. Example: popped sorghum.': 'Producto que nadie compró. Ejemplo: sorgo inflado.',
   'Missing at setup': 'Faltó al montar',
   'Ordered or made, but not on the tasting rack when you set up.': 'Se pidió o se hizo, pero no estaba en el rack de degustación al montar.',
+  'Prepped wrong / remade': 'Mal preparado / se rehízo',
+  'On the rack, but prepped wrong or had to be remade. One item per line.': 'Estaba en el rack, pero mal preparado o se tuvo que rehacer. Un artículo por línea.',
   'Tasting TPP # should be five digits.': 'El # de TPP de la degustación debe tener cinco dígitos.'
 };
 var EN = {};
@@ -1932,7 +1941,7 @@ function sendReport() {
       tastingDate: val('ltDate'), tastingTpp: val('ltTpp'), startTime: val('ltStart'), endTime: val('ltEnd'),
       apps1Out: val('ltApps1'), apps2Out: val('ltApps2'), saladsOut: val('ltSalads'),
       entrees1Out: val('ltEntrees1'), entrees2Out: val('ltEntrees2'), dessertOut: val('ltDessert'), lateNightOut: val('ltLateNight'),
-      notOrdered: val('ltNotOrdered'), missingSetup: val('ltMissing')
+      notOrdered: val('ltNotOrdered'), missingSetup: val('ltMissing'), preppedWrong: val('ltRemade')
     };
     evNum = leaderTastingData.tastingTpp; evDate = leaderTastingData.tastingDate;
   }
