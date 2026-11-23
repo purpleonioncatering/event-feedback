@@ -343,9 +343,20 @@
       </div><!-- /notesQs -->
 
       <div id="crewQs"><!-- v8 (2026-10-22): Chef + Captain only -->
-      <label>Plated dinner: minutes from first plate out to last plate down</label>
-      <input type="number" id="plateUpMinutes" min="5" max="180" step="1" inputmode="numeric" placeholder="25">
-      <p class="hint">Leave blank if it wasn't a plated dinner.</p>
+      <!-- v25: asked outright, so a time is never skipped on a plated meal or made up on one that wasn't -->
+      <label class="req">Was the meal plated?</label>
+      <div class="choices">
+        <label><input type="radio" name="plated" value="Yes" onchange="platedToggle()">Yes</label>
+        <label><input type="radio" name="plated" value="No" onchange="platedToggle()">No</label>
+      </div>
+      <div class="reveal" id="platedYesWrap">
+        <label class="req">Minutes from first plate out to last plate down</label>
+        <input type="number" id="plateUpMinutes" min="5" max="180" step="1" inputmode="numeric">
+      </div>
+      <div class="reveal" id="platedNoWrap">
+        <label class="req">TPP has this as a plated event. What happened?</label>
+        <input type="text" id="notPlatedWhy" maxlength="120">
+      </div>
 
       <div class="q">
         <label>Any photos worth sharing? (optional, up to 3)</label>
@@ -1126,10 +1137,13 @@ var ES = {
   'Venue, timing, logistics. Personnel problems go on the HR form, not here.': 'Lugar, horarios, logística. Los problemas con personal van con Recursos Humanos, no aquí.',
   /* chef + captain extras (v8, 2026-10-22) */
   'Need more room? Email it.': '¿Necesitas más espacio? Mándalo por correo.',
-  'Plated dinner: minutes from first plate out to last plate down': 'Cena emplatada: minutos desde que sale el primer plato hasta que el último está en la mesa',
-  "Leave blank if it wasn't a plated dinner.": 'Déjalo en blanco si no fue una cena emplatada.',
+  'Was the meal plated?': '¿La comida fue emplatada?',
+  'Minutes from first plate out to last plate down': 'Minutos desde que sale el primer plato hasta que el último está en la mesa',
+  'TPP has this as a plated event. What happened?': 'En TPP este evento es emplatado. ¿Qué pasó?',
+  'Say whether the meal was plated.': 'Di si la comida fue emplatada.',
+  'TPP has this as a plated event. Say what happened.': 'En TPP este evento es emplatado. Di qué pasó.',
   'Any photos worth sharing? (optional, up to 3)': '¿Alguna foto que valga la pena compartir? (opcional, máximo 3)',
-  'Plate-up time should be 5 to 180 minutes. Leave it blank if it was not a plated dinner.': 'El tiempo de emplatado debe ser de 5 a 180 minutos. Déjalo en blanco si no fue una cena emplatada.',
+  'A plated meal needs its plate-up time: 5 to 180 minutes.': 'Una comida emplatada necesita su tiempo de emplatado: de 5 a 180 minutos.',
   'Up to 3 photos — pick 3 or fewer.': 'Máximo 3 fotos — elige 3 o menos.',
   'Captain — the room': 'Capitán — el salón',
   'Did you check in with the client or host before leaving?': '¿Hablaste con el cliente o anfitrión antes de irte?',
@@ -1855,6 +1869,16 @@ function pickEvent() {
   document.getElementById('eventNumber').value = e ? e.num : '';
   document.getElementById('eventDate').value = e ? e.date : '';
   refreshMenuPicks();   // v20
+  platedToggle();       // v25
+}
+/* v25: plated or not. TPP's service style arrives with the event list. */
+function tppPlated() {
+  var num = val('eventNumber');
+  return EVT.list.some(function (e) { return e.num === num && e.plated === 'Yes'; });
+}
+function platedToggle() {
+  rev('platedYesWrap', radio('plated') === 'Yes');
+  rev('platedNoWrap', radio('plated') === 'No' && tppPlated());
 }
 
 /* ---------------- v18: Leadership photos, one caption each ---------------- */
@@ -2125,14 +2149,20 @@ function sendReport() {
       return msg('err', 'A supporting photo looks blank. Retake it.');
 
   /* ---- chef + captain extras (v8): plate-up minutes + up to 3 photos worth sharing ---- */
-  var crew = role === 'Chef' || role === 'Captain', plateUp = '', crewFiles = [];
+  var crew = role === 'Chef' || role === 'Captain', plateUp = '', plated, notPlatedWhy = '', crewFiles = [];
   if (crew) {
     var pu = document.getElementById('plateUpMinutes');
-    plateUp = val('plateUpMinutes');
-    // badInput = the box holds something that is not a number (the browser then reports value as '')
-    if ((pu.validity && pu.validity.badInput) ||
-        (plateUp && !(/^[0-9]+$/.test(plateUp) && +plateUp >= 5 && +plateUp <= 180)))   // v16: floor 5
-      return msg('err', 'Plate-up time should be 5 to 180 minutes. Leave it blank if it was not a plated dinner.');
+    plated = radio('plated');   // v25
+    if (plated !== 'Yes' && plated !== 'No') return msg('err', 'Say whether the meal was plated.');
+    if (plated === 'Yes') {
+      plateUp = val('plateUpMinutes');
+      // badInput = the box holds something that is not a number (the browser then reports value as '')
+      if ((pu.validity && pu.validity.badInput) || !(/^[0-9]+$/.test(plateUp) && +plateUp >= 5 && +plateUp <= 180))   // v16: floor 5
+        return msg('err', 'A plated meal needs its plate-up time: 5 to 180 minutes.');
+    } else if (tppPlated()) {
+      notPlatedWhy = val('notPlatedWhy');
+      if (!notPlatedWhy) return msg('err', 'TPP has this as a plated event. Say what happened.');
+    }
     var cp = document.getElementById('crewPhotos');
     crewFiles = [].slice.call(cp.files || []);
     if (crewFiles.length > (+cp.getAttribute('data-max') || 3)) return msg('err', 'Up to 3 photos — pick 3 or fewer.');
@@ -2192,6 +2222,7 @@ function sendReport() {
       salesPhotos: salesPhotos, items: items, lang: LANG,
       plateUpMinutes: plateUp, crewPhotos: crewPhotos, leaderPhotos: leaderPhotos
     };
+    if (crew) { payload.plated = plated; payload.notPlatedWhy = notPlatedWhy; }   // v25
     if (leaderTastingData) { payload.leaderTasting = leaderTastingData; payload.service = ''; }   // v19
     if (training) payload.training = training;   // v9: omitted entirely when the section is not showing
     send(payload, function (res) {
